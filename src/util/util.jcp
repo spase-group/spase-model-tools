@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project>
+	<settings>
+		<label>util</label>
+		<root_path>\</root_path>
+		<output_path>..\..\build\classes\</output_path>
+		<source_path>\</source_path>
+		<jdkprofile_ref>java</jdkprofile_ref>
+		<compiler_ref>&lt;Default&gt;</compiler_ref>
+		<ant_ref/>
+	</settings>
+	<ant_events/>
+	<run_items/>
+	<runtimes>
+		<runtime>
+			<label>&lt;Default&gt;</label>
+			<application_ref/>
+			<applet_ref/>
+			<debugger_ref/>
+			<param/>
+			<run>spase.util.CodePack</run>
+		</runtime>
+	</runtimes>
+	<libraries/>
+	<files>
+		<include>
+			<fileitem>
+				<path>CodePack.java</path>
+			</fileitem>
+			<fileitem>
+				<path>MakeParser.java</path>
+			</fileitem>
+			<fileitem>
+				<path>MakeXMI.java</path>
+			</fileitem>
+			<fileitem>
+				<path>MakeXML.java</path>
+			</fileitem>
+			<fileitem>
+				<path>MakeXSD.java</path>
+			</fileitem>
+			<fileitem>
+				<path>MakeXSL.java</path>
+			</fileitem>
+			<fileitem>
+				<path>XML.java</path>
+			</fileitem>
+		</include>
+	</files>
+	<tasks/>
+</project>

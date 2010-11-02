@@ -1,0 +1,7 @@
+C:\Projects\spase\java\model\src\util\CodePack.java
+C:\Projects\spase\java\model\src\util\MakeParser.java
+C:\Projects\spase\java\model\src\util\MakeXMI.java
+C:\Projects\spase\java\model\src\util\MakeXML.java
+C:\Projects\spase\java\model\src\util\MakeXSD.java
+C:\Projects\spase\java\model\src\util\MakeXSL.java
+C:\Projects\spase\java\model\src\util\XML.java

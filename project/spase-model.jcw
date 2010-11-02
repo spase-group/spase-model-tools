@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<workspace>
+	<settings>
+		<label>Spase-model</label>
+	</settings>
+	<users>
+		<user>
+			<path>spase-model.jcu</path>
+		</user>
+	</users>
+	<projects>
+		<project>
+			<path>..\src\util\util.jcp</path>
+		</project>
+		<project>
+			<path>..\src\bean\bean.jcp</path>
+		</project>
+	</projects>
+</workspace>
