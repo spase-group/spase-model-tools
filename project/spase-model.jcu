@@ -6,11 +6,11 @@
 	</active_project>
 	<projects>
 		<project>
-			<label>util</label>
+			<label>bean</label>
 			<showfiles>false</showfiles>
 		</project>
 		<project>
-			<label>bean</label>
+			<label>util</label>
 			<showfiles>false</showfiles>
 		</project>
 	</projects>

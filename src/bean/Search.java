@@ -1,6 +1,12 @@
 /**
  *  Perform a data dictionary search and extraction.
  *
+ * When used as a bean a call to init() or init(String) will establish the
+ * connection to the database containing the model specification.
+ * For the init() method, a JNDI resource with the reference name "jdbc/spase" must
+ * be defined in the web.xml file. For the init(String) method the the passed
+ * String is name of the properties file (see igpp.database.Query).
+ *
  * @author Todd King
  * @version 1.00 2006
  */
@@ -42,11 +48,14 @@ import java.net.URLEncoder;
 
 public class Search extends SmartHttpServlet
 {
+	static final String mVersion = "1.0.1";
+	
 // Local variables
-	String	host = "localhost";
-	String	database = "spase";
-	String	username = "spase-user";
-	String	password = "my123";
+	String	host = "";
+	String	database = "spase-model.db";
+	String	username = "";
+	String	password = "";
+	String	driverName = "SQLite";
 
 	boolean	doSearch = false;
 	boolean	showLinks = false;
@@ -75,6 +84,7 @@ public class Search extends SmartHttpServlet
 		String	message;
 		
 		if(args.length < 0) {
+			System.out.println("Version: " + mVersion);
 			System.out.println("Usage: igpp.bean.Search");
 			System.exit(1);
 		}
@@ -122,7 +132,11 @@ public class Search extends SmartHttpServlet
 			this.access.setDatabase(this.host, this.database);
 			this.access.useUser();
 			*/
+			/*
 			this.access.useResource("jdbc/spase");
+			*/
+			this.access.setDatabaseDriver("SQLite");
+			this.access.setDatabase("", "spase-model.db");
 			this.access.connect();
 			
 			// Second connection used by some methods.
@@ -131,7 +145,28 @@ public class Search extends SmartHttpServlet
 			this.access2.setDatabase(this.host, this.database);
 			this.access2.useUser();
 			*/
+			/*
 			this.access2.useResource("jdbc/spase");
+			*/
+			this.access2.setDatabaseDriver("SQLite");
+			this.access2.setDatabase("", "spase-model.db");
+			this.access2.connect();
+   	} catch(Exception e) {
+   		throw new ServletException(e);
+   	}
+   }
+   public void init(ServletContext context, HttpServletRequest request, String database)
+   	throws ServletException
+   {
+   	try {
+   		String path = igpp.util.Text.getPath(context.getRealPath(request.getServletPath()));
+			this.access.setDatabaseDriver("SQLite");
+			this.access.setDatabase(path, database);
+			this.access.connect();
+			
+			// Second connection used by some methods.
+			this.access2.setDatabaseDriver("SQLite");
+			this.access2.setDatabase(path, database);
 			this.access2.connect();
    	} catch(Exception e) {
    		throw new ServletException(e);
@@ -201,8 +236,8 @@ public class Search extends SmartHttpServlet
 			else if(this.style.compareTo("template") == 0) showTemplate(out);	// Special case
 			else showSearch(out);	// Entry
 			
-			this.access.disconnect();
-			this.access2.disconnect();
+			// this.access.disconnect();
+			// this.access2.disconnect();
 		} catch(Exception e) {
 			log(out, e.getMessage());
 		}
@@ -237,23 +272,23 @@ public class Search extends SmartHttpServlet
 			if(ver.compareTo(curVer) != 0) {	// New version
 				if(curVer.length() > 0) out.println("</table>");
 				out.println("Version: <b>" + ver + "</b>");
-				out.println("<table border=\"1\">");
-				out.println("<tr bgcolor=\"#CCCCCC\">");
-				out.println("<td align=\"center\" width=\"80px\">Updated</td>");
-				out.println("<td align=\"center\">Description</td>");
-				out.println("<td align=\"center\">Notes</td>");
+				out.println("<table class=\"history\">");
+				out.println("<tr>");
+				out.println("<th width=\"80px\">Updated</th>");
+				out.println("<th>Description</th>");
+				out.println("<th>Notes</th>");
 				out.println("</tr>");
 				curVer = ver;
 			}
 
    		String color = "";
-   		if(resultSet.getString("Description").compareTo("Released.") == 0) color=" bgcolor=\"#22EE22\"";
+   		if(resultSet.getString("Description").compareTo("Released.") == 0) color=" class=\"release\"";
    	
 	   	out.println(
 	   		  "<tr" + color + ">"
-	   		+ "<td valign=\"top\">" + resultSet.getString("Updated") + "</td>"
-	   		+ "<td valign=\"top\">" + resultSet.getString("Description") + "</td>"
-	   		+ "<td valign=\"top\">" + resultSet.getString("Note") + "</td>"
+	   		+ "<td>" + resultSet.getString("Updated") + "</td>"
+	   		+ "<td>" + resultSet.getString("Description") + "</td>"
+	   		+ "<td>" + resultSet.getString("Note") + "</td>"
 	   		+ "</tr>"
 	   		);
 		}
@@ -445,7 +480,7 @@ public class Search extends SmartHttpServlet
 		
 		if(this.generation > 1) {
 			out.println(
-				  "<br><table><tr><td valign=top>Notes:</td><td>Elements marked with [ID] may be an embedded object with the given name or, "
+				  "<br><table class=\"plain\"><tr><td valign=top>Notes:</td><td>Elements marked with [ID] may be an embedded object with the given name or, "
 				+ "with \"ID\" appended, a reference to a predefined object. A reference to any object is by its Resource ID.<p>"
 				);
 			if(this.showOccur) out.println("<p>Occurence specifications are in ( ): 0 = optional, 1 = required, * = zero or more, + = 1 or more"
@@ -453,7 +488,7 @@ public class Search extends SmartHttpServlet
 			out.println("</td></tr></table>");
 		}
 		
-		out.println("<table>"); 
+		out.println("<table class=\"tree\">"); 
 		if(this.generation > 1) {
 			showTree2(out, "Spase", 0, "1", "", "");
 		} else {
@@ -584,17 +619,16 @@ public class Search extends SmartHttpServlet
 		
 		// Show search form
 		out.println(
-			  "Search the SPASE data dictionary for terms and lists.<br>"
+			  "<h1>Search the SPASE data dictionary</h1><br>"
 			+ "Use the wildcard (*) for unconstrained portions of a search.<br>"
 			+ "<form name=\"SearchForm\" method=\"get\" action=\"" + this.scriptName + "\">"
 			+ "<input type=\"hidden\" name=\"style\" value=\"entry\">"
-			+ "<table border=\"0\">"
+			+ "<table class=\"form\">"
 			+ "<tr>"
-			+ "<td align=right>Search for:</td>"
-			+ "<td><input type=\"text\" name=\"term\" value=\"" + this.term + "\"></td>"
+			+ "<td align=\"center\" colspan=\"2\">Search for: <input type=\"text\" name=\"term\" value=\"" + this.term + "\"></td>"
 			+ "</tr>"
 			+ "<tr>"
-			+ "<td colspan=\"2\" align=\"center\">"
+			+ "<td align=\"center\" colspan=\"2\">"
 			+ "In the:"
 			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"dictionary\" " + dirSel + ">Dictionary"
 			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"list\"" + listSel + ">List"
@@ -629,7 +663,7 @@ public class Search extends SmartHttpServlet
 			pattern = Encode.sqlEncode(this.term);
 			if(pattern.length() == 0) pattern = "%";	// Everything
 			
-			out.println("<a target=_blank href=card.jsp?view=" + this.style + ">How to read an entry</a>");
+			out.println("<a target=_blank href=card.jspf?view=" + this.style + ">How to read an entry</a>");
 		
 			// Dictionary search     
 			if(this.scope.compareTo("dictionary") == 0) count = showDictionary(out, pattern);
@@ -675,7 +709,7 @@ public class Search extends SmartHttpServlet
 				);
 		}
 		out.println(
-			  "<table><tr><td>Version:</td><td>"
+			  "<table class=\"plain\"><tr><td>Version:</td><td>"
 			);
 			
     	draft = "(draft)";
@@ -883,8 +917,8 @@ public class Search extends SmartHttpServlet
 		out.println(
 			  "<table width=\"600\" border=\"0\" cellspacing=\"0\">"
 			+ "<tr>"
-			+ "<td width=\"50%\" bgcolor=\"#000000\" align=\"left\"><font color=\"#FFFFF\">" + termDef.term + "</font></td>"
-			+ "<td width=\"50%\" align=\"right\">"
+			+ "<td class=\"term\">" + termDef.term + "</td>"
+			+ "<td class=\"type\">"
 			+ "<a href=\"" + typeURL + "\">" + termDef.type + "</a></td>"
 			+ "</tr>"
 			+ "<tr>"
@@ -1150,11 +1184,11 @@ public class Search extends SmartHttpServlet
 					
 		// Entry header and definition         
 		out.println(
-			  "<table width=\"600\" border=\"0\" cellspacing=\"0\">"
+			  "<table class=\"definition\">"
 			+ "<!-- Defnition start -->"
 			+ "<tr>"
-			+ "<td width=\"50%\" bgcolor=\"#000000\" align=\"left\"><font color=\"#FFFFF\">" + termDef.term + "</font></td>"
-			+ "<td width=\"50%\" align=\"right\">"
+			+ "<td class=\"term\">" + termDef.term + "</td>"
+			+ "<td class=\"type\">"
 			+ "<a href=\"" + typeURL + "\">" + termDef.type + "</a></td>"
 			+ "</tr>"
 			+ "<tr>"
