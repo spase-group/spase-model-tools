@@ -11,10 +11,10 @@
 	</users>
 	<projects>
 		<project>
-			<path>..\src\bean\bean.jcp</path>
+			<path>..\src\util\util.jcp</path>
 		</project>
 		<project>
-			<path>..\src\util\util.jcp</path>
+			<path>..\src\bean\bean.jcp</path>
 		</project>
 	</projects>
 </workspace>
