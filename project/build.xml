@@ -62,7 +62,7 @@
     <!-- Compile source code -->
     <target name="compile">
         <mkdir dir="${classes.dir}"/>
-        <javac debug="true" srcdir="${src.dir}" destdir="${classes.dir}" classpathref="classpath"/>
+        <javac debug="true" srcdir="${src.dir}" destdir="${classes.dir}"   extdirs="${release.jar}" />
     </target>
 
     <!-- Create jar file for classes -->
@@ -193,7 +193,7 @@
     
     <!-- Copy current release to the release web site -->
     <target name="local" >
-        <copy todir="${release.jar}" file="${jar.dir}/${package.name}-${version}.jar"  extdirs="${release.jar}" />
+        <copy todir="${release.jar}" file="${jar.dir}/${package.name}-${version}.jar" />
     </target>
 </project>
 
