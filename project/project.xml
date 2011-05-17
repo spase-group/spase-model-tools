@@ -10,4 +10,6 @@
     <property name="package.vendor" value="UCLA/IGPP" />
     <property name="copyright"    value="Copyright &#169; 2008-2010 Regents University of California. All Rights Reserved." />
     <property name="main-class"   value="org.spase.model.HelloWorld" />
+    
+    <property name="release.jar"   value="/projects/jar" />
 </project>

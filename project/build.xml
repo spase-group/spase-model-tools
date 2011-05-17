@@ -191,5 +191,9 @@
         </junitreport>
     </target>
     
+    <!-- Copy current release to the release web site -->
+    <target name="local" >
+        <copy todir="${release.jar}" file="${jar.dir}/${package.name}-${version}.jar" />
+    </target>
 </project>
 
