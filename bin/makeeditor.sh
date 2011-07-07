@@ -3,10 +3,10 @@
 #
 # Author: Todd King
 #
-version=${1:-1.2.0}
+version=${1:-2.2.1}
+homepath=${2:-/c/projects/spase/webapp/ROOT}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
 # Make the editor files
-cd /var/www/spase/root/tools/editor
-/var/www/spase/root/WEB-INF/runjava.sh org.spase.model.util.MakeXSL $version edit
+./runjava.sh org.spase.model.util.MakeXSL $version edit $homepath/data ../tools/editor

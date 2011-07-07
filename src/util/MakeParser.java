@@ -1,13 +1,13 @@
 /**
  * Creates an XML parser for each container of metadata.
- * The parer classes convert XML documents into program 
+ * The parer classes convert XML documents into program
  * accessible class members.
  * The generated source code is placed in the current directory.
  * Queries the data model database to build the the classes.
  * <p>
  * Usage:
  *   MakeParser version
- * 
+ *
  * @author Todd King
  * @version 1.00 2006 11 27
  * @copyright 2006 Regents University of California. All Rights Reserved
@@ -40,16 +40,18 @@ import javax.servlet.http.HttpServletResponse;
 public class MakeParser extends Query
 {
 	private String	mVersion = "1.0.0";
-	
-	private String	mModelVersion = null;
-	
-	// Database access variables
-	private String mHost = "localhost";
-	private String mDatabase = "spase";
-	private String mUsername = "spase-user";
-	private String mPassword = "my123";
 
-	// Output 
+	private String	mModelVersion = null;
+	private String	mHomepath = "";
+	private String	mOutpath = "";
+
+	// Database access variables
+	private String mHost = "";
+	private String mDatabase = "spase-model.db";
+	private String mUsername = "";
+	private String mPassword = "";
+
+	// Output
 	private JspWriter	mWriter = null;
 	private PrintStream	mStream = null;
 	private ServletOutputStream	mServlet = null;
@@ -57,7 +59,7 @@ public class MakeParser extends Query
 	ArrayList<String> mTopLevelElements = null;;
 
 	ArrayList<String>	mFileList = new ArrayList<String>();
-	
+
 	// Enumeration of Type
 	private final int TypeContainer		= 0;
 	private final int TypeCount			= 1;
@@ -67,8 +69,8 @@ public class MakeParser extends Query
 	private final int TypeNumeric			= 5;
 	private final int TypeText				= 6;
 	private final int TypeTime				= 7;
-	
-    /** 
+
+    /**
 	 * Build an XML Schema document based on the SPASE data model specification
 	 * in the data model database.
 	 *<p>
@@ -84,39 +86,52 @@ public class MakeParser extends Query
 	public static void main(String args[])
    {
 		MakeParser me = new MakeParser();
-		   
+
 		if (args.length < 1) {
 			System.err.println("Version: " + me.mVersion);
 			System.err.println("Usage: " + me.getClass().getName() + " version");
 			System.exit(1);
 		}
-		
+
 		try {
 			me.mModelVersion = args[0];
 			me.mModelVersion = me.getModelVersion();
-	
-			me.setDatabase(me.mHost, me.mDatabase);
+
+			if(args.length > 1) {
+				me.mHomepath = args[1];
+				if( ! me.mHomepath.endsWith("/")) me.mHomepath += "/";
+			}
+
+			if(args.length > 2) {
+				me.mOutpath = args[2];
+				if( ! me.mOutpath.endsWith("/")) me.mOutpath += "/";
+			}
+
+
+			me.setDatabaseDriver("SQLite");
+			me.setDatabase(me.mHost, me.mHomepath + me.mDatabase);
 			me.setUserLogin(me.mUsername, me.mPassword);
 			me.useUser();
-			
+
 			me.setWriter(System.out);
 			me.makeAll();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
     }
-    
-	public void init() 
-			throws Exception 
+
+	public void init()
+			throws Exception
 	{
-		setDatabase(mHost, mDatabase);
+		setDatabaseDriver("SQLite");
+		setDatabase(mHost, mHomepath + mDatabase);
 		setUserLogin(mUsername, mPassword);
 		useUser();
-		
+
 		mModelVersion = getModelVersion();
 	}
-	
-	public void destroy() 
+
+	public void destroy()
 	{
 	}
 
@@ -125,27 +140,27 @@ public class MakeParser extends Query
     {
     	doGet(request, response);
     }
-    
+
 	public void doGet(HttpServletRequest request, HttpServletResponse response)
-	     throws Exception 
+	     throws Exception
 	{
    	ServletOutputStream out = response.getOutputStream();
-   	
+
    	getModelVersion();
-   	
+
 		response.setContentType("application/data");
 		response.setHeader("Content-Disposition", "attachment; filename=\"spase-" + mModelVersion.replace(".", "_") + ".xsd\"");
-		
+
 		setWriter(out);
 		makeAll();
 	}
-	
+
 	public void writeHeader(String name, String version, boolean isResource)
 		throws Exception
 	{
 		String	today = new SimpleDateFormat("yyyy-MMM-d").format(new Date());
 		String	ver = version.replace(".", "");
-		
+
 		printLine("package spase.parser%param%;", ver);
 		printLine("");
 		printLine("import org.w3c.dom.Node;");
@@ -167,7 +182,7 @@ public class MakeParser extends Query
 		}
 		printLine("{");
 	}
-	
+
 	public void writeConstructor(String name)
 	{
 		printLine("");
@@ -204,33 +219,33 @@ public class MakeParser extends Query
 	{
 		printLine("}");
 	}
-	
+
 	public void writeVariables(ArrayList list)
 		throws Exception
 	{
 		String	elemName;
 		String	buffer;
-		
+
 		printLine("");
-							
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			buffer = (String) i.next();	// Occurrence token prepended to name
 			elemName = getElemName(buffer);
-			
+
 			if(isMultiple(buffer)) {
 				if(isContainer(getTermName(buffer))) {
-					printLine("   private ArrayList<%param%> m%param% = new ArrayList<%param%>();", elemName); 
+					printLine("   private ArrayList<%param%> m%param% = new ArrayList<%param%>();", elemName);
 				} else {
-					printLine("   private ArrayList<String> m%param% = new ArrayList<String>();", elemName); 
+					printLine("   private ArrayList<String> m%param% = new ArrayList<String>();", elemName);
 				}
-			}	else { 
+			}	else {
 				if(isContainer(getTermName(buffer))) {
-					printLine("   private %param% m%param% = new %param%();", elemName); 
+					printLine("   private %param% m%param% = new %param%();", elemName);
 				} else {
-					printLine("   private String m%param% = \"\";", elemName); 
+					printLine("   private String m%param% = \"\";", elemName);
 				}
 			}
-		}	
+		}
 	}
 
 	public void writeNodeMethods(String objectName, ArrayList list)
@@ -238,9 +253,9 @@ public class MakeParser extends Query
 	{
 		String	tokenName;
 		String	elemName;
-		
+
 		printLine("");
-		printLine("   public void makeEditNodes()"); 
+		printLine("   public void makeEditNodes()");
 		printLine("   {");
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			tokenName = (String) i.next();
@@ -255,7 +270,7 @@ public class MakeParser extends Query
 		}
 		printLine("   }");
 		printLine("");
-		printLine("   public void makeSkeletonNodes()"); 
+		printLine("   public void makeSkeletonNodes()");
 		printLine("   {");
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			tokenName = (String) i.next();
@@ -268,13 +283,13 @@ public class MakeParser extends Query
 				}
 			} else {
 				if(isMultiple(tokenName)) {
-					printLine("      if(m%param%.isEmpty()) m%param%.add(\"\");", elemName); 
+					printLine("      if(m%param%.isEmpty()) m%param%.add(\"\");", elemName);
 				}
 			}
 		}
 		printLine("   }");
 		printLine("");
-		printLine("   public XMLParser getMemberNode(String name)"); 
+		printLine("   public XMLParser getMemberNode(String name)");
 		printLine("   {");
 		printLine("      String	nodeName = getMemberNodeName(name);");
 		printLine("      int		nodeIndex = getMemberNodeIndex(name);");
@@ -313,7 +328,7 @@ public class MakeParser extends Query
 		}
 		printLine("   }");
 		printLine("");
-		
+
 		printLine("   public void removeMember(String item, int index)");
 		printLine("   {");
 		printLine("      if(index < 0) return;");
@@ -332,23 +347,23 @@ public class MakeParser extends Query
 	{
 		String	tokenName;
 		String	elemName;
-		
-		printLine("");	
+
+		printLine("");
 		printLine("   public String getXMLDocument(int n)");
 		printLine("   {");
 		printLine("      return getXMLDocument(n, null, -1, false);");
 		printLine("   }");
-		printLine("");	
+		printLine("");
 		printLine("   public String getXMLDocument(int n, boolean inUseOnly)");
 		printLine("   {");
 		printLine("      return getXMLDocument(n, null, -1, inUseOnly);");
 		printLine("   }");
-		printLine("");	
+		printLine("");
 		printLine("   public String getXMLDocument(int n, String path, int key)");
 		printLine("   {");
 		printLine("      return getXMLDocument(n, path, key, false);");
 		printLine("   }");
-		printLine("");	
+		printLine("");
 		printLine("   public String getXMLDocument(int n, String path, int key, boolean inUseOnly)");
 		printLine("   {");
 		printLine("   	Iterator i;");
@@ -356,7 +371,7 @@ public class MakeParser extends Query
 		printLine("   	int		j;");
 		printLine("   	String buffer = \"\";");
 		printLine("   	String	elemPath = getElementPath(path, key);");
-		printLine("");	
+		printLine("");
 		printLine("   	if(path != null) buffer += getTaggedValue(n+1, \"ElementPath\", elemPath, inUseOnly);");
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			tokenName = (String) i.next();
@@ -383,18 +398,18 @@ public class MakeParser extends Query
 				}
 			}
 		}
-		printLine("      if(inUseOnly && buffer.length() == 0) return \"\"; // Empty");	
-		printLine("");	
+		printLine("      if(inUseOnly && buffer.length() == 0) return \"\"; // Empty");
+		printLine("");
 		printLine("      return getTagOpen(n, getClassName()) + buffer + getTagClose(n, getClassName());");
 		printLine("   }");
 	}
-	
+
 	public void writeSetGet(ArrayList list)
 		throws Exception
 	{
 		String	tokenName;
 		String	elemName;
-		
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			tokenName = (String) i.next();
 			elemName = getElemName(tokenName);
@@ -421,12 +436,12 @@ public class MakeParser extends Query
 			}
 		}
 	}
-	
+
 	public void writeReset(ArrayList list)
 	{
 		String	tokenName;
 		String	elemName;
-		
+
 		printLine("");
 		printLine("   public void reset()");
 		printLine("   {");
@@ -449,12 +464,12 @@ public class MakeParser extends Query
 		}
 		printLine("   }");
 	}
-	
+
 	public void writeRequired(ArrayList list)
 	{
 		String	tokenName;
 		String	elemName;
-		
+
 		printLine("");
 		printLine("   public void setRequired()");
 		printLine("   {");
@@ -467,12 +482,12 @@ public class MakeParser extends Query
 		}
 		printLine("   }");
 	}
-	
+
 	public void writeXPathPairs(String object, ArrayList list)
 	{
 		String	tokenName;
 		String	elemName;
-		
+
 		printLine("");
 		printLine("   public ArrayList<Pair> getXPathPairs(String prefix, int index)");
 		printLine("   {");
@@ -501,7 +516,7 @@ public class MakeParser extends Query
 		}
 		printLine("      return list;");
 		printLine("   }");
-		
+
 		printLine("");
 		printLine("	public static ArrayList<Pair> getXPathPairs(String prefix, ArrayList<%param%> list)", object);
 		printLine("	{");
@@ -513,7 +528,7 @@ public class MakeParser extends Query
 		printLine("      return pairList;");
 		printLine("	}");
 	}
-	
+
 	public void writeDescriptionClass(ArrayList list, String version)
 		throws Exception
 	{
@@ -522,9 +537,9 @@ public class MakeParser extends Query
 		String	verXSD = version.replace(".", "_");
 		String	tokenName;
 		String	elemName;
-		
+
 		String	fileName = "Description.java";
-		PrintStream out = new PrintStream(fileName);
+		PrintStream out = new PrintStream(mOutpath + fileName);
 		mFileList.add(fileName);
 		setWriter(out);
 	   System.out.println(fileName);
@@ -704,7 +719,7 @@ public class MakeParser extends Query
 			elemName = getXSLName((String) i.next());
 			printLine("             if(Util.isMatch(name, \"%param%\")) mResource.add(new %param%(sibling));", elemName);
 		}
-		
+
 	   printLine("");
 	   printLine("             // Next node");
 	   printLine("             sibling = sibling.getNextSibling();");
@@ -870,7 +885,7 @@ public class MakeParser extends Query
 	   printLine("       }");
 	   printLine("   }");
 	   printLine("}");
-	   
+
 	   closeWriter();
 	}
 
@@ -878,9 +893,9 @@ public class MakeParser extends Query
 		throws Exception
 	{
 		String	fileName = "Pair.java";
-		PrintStream out = new PrintStream(fileName);
+		PrintStream out = new PrintStream(mOutpath + fileName);
 		String	ver = version.replace(".", "");
-		
+
 		mFileList.add(fileName);
 		setWriter(out);
 	   System.out.println(fileName);
@@ -1005,17 +1020,17 @@ public class MakeParser extends Query
       printLine("	}");
       printLine("}");
       printLine("");
-		
+
 		closeWriter();
 	}
-	
+
 	public void writeUtilClass(String version)
 		throws Exception
 	{
 		String	fileName = "Util.java";
-		PrintStream out = new PrintStream(fileName);
+		PrintStream out = new PrintStream(mOutpath + fileName);
 		String	ver = version.replace(".", "");
-		
+
 		mFileList.add(fileName);
 		setWriter(out);
 	   System.out.println(fileName);
@@ -1102,21 +1117,21 @@ public class MakeParser extends Query
       printLine("   }");
       printLine("}");
 
-		
+
 		closeWriter();
 	}
-	
+
 	public void writeResourceClass(String version)
 		throws Exception
 	{
 		String	fileName = "Resource.java";
-		PrintStream out = new PrintStream(fileName);
+		PrintStream out = new PrintStream(mOutpath + fileName);
 		String	ver = version.replace(".", "");
-	
+
 		mFileList.add(fileName);
 		setWriter(out);
 	   System.out.println(fileName);
-	
+
 		printLine("package spase.parser%param%;", ver);
       printLine("");
       printLine("import org.w3c.dom.Node;");
@@ -1244,13 +1259,13 @@ public class MakeParser extends Query
       printLine("");
 
 		closeWriter();
-	}	
-		
+	}
+
 	public void writeXMLParserClass(String version)
 		throws Exception
 	{
 		String	fileName = "XMLParser.java";
-		PrintStream out = new PrintStream(fileName);
+		PrintStream out = new PrintStream(mOutpath + fileName);
 		String	ver = version.replace(".", "");
 
 		mFileList.add(fileName);
@@ -2963,18 +2978,18 @@ public class MakeParser extends Query
       printLine("	public void addRequired(String value) { mRequired.add(value); }");
       printLine("	public ArrayList getRequired() { return mRequired; }");
       printLine("}");
-      
+
 		closeWriter();
 	}
-	
+
 	public void writeProjectFile(String version)
 		throws Exception
 	{
 		String	buffer;
 		String	fileName = "parser.jcp";
-		PrintStream out = new PrintStream(fileName);
+		PrintStream out = new PrintStream(mOutpath + fileName);
 		String	ver = version.replace(".", "");
-		
+
 		setWriter(out);
 	   System.out.println(fileName);
 
@@ -3005,22 +3020,22 @@ public class MakeParser extends Query
 		printLine("	<libraries/>");
 		printLine("	<files>");
 		printLine("		<include>");
-	   
+
 		for(Iterator i = mFileList.iterator(); i.hasNext(); ) {
 			buffer = (String) i.next();
 			printLine("			<fileitem>");
 			printLine("				<path>%param%</path>", buffer);
 			printLine("			</fileitem>");
 		}
-		
+
 		printLine("		</include>");
 		printLine("	</files>");
 		printLine("	<tasks/>");
 		printLine("</project>");
-			
+
 	   closeWriter();
 	}
-	
+
 	/**
 	 * Determine if term is a container
 	 **/
@@ -3030,10 +3045,10 @@ public class MakeParser extends Query
 			if(getElementTypeToken(term) == TypeContainer) return true;
 		} catch(Exception e) {
 		}
-			
+
 		return false;
 	}
-	
+
 	/**
 	 * Determine if term is a container
 	 **/
@@ -3041,18 +3056,18 @@ public class MakeParser extends Query
 	{
 		String	buffer;
 		boolean	has = false;
-		
+
 		// Exceptions
 		if(isMatch(term, "Person")) return false;
 		if(isMatch(term, "Granule")) return false;
-		
+
 		for(Iterator i = mTopLevelElements.iterator(); i.hasNext(); ) {
 			buffer = (String) i.next();
 			if(isMatch(term, buffer)) has = true;
 		}
 		return has;
 	}
-	
+
 	/**
 	 * Determine if token is multiple occurence
 	 **/
@@ -3060,10 +3075,10 @@ public class MakeParser extends Query
 	{
 		boolean multiple = false;
 		char	occur = token.charAt(0);
-			
+
 		// Determine visual attributes based on occurrence
 		multiple = false;
-		
+
 		switch(occur) {
 		case '0':
 			multiple = false;
@@ -3078,10 +3093,10 @@ public class MakeParser extends Query
 			multiple = true;
 			break;
 		}
-		
+
 		return multiple;
 	}
-	
+
 	/**
 	 * Determine if token is required
 	 **/
@@ -3089,10 +3104,10 @@ public class MakeParser extends Query
 	{
 		boolean required = false;
 		char	occur = token.charAt(0);
-			
+
 		// Determine visual attributes based on occurrence
 		required = false;
-		
+
 		switch(occur) {
 		case '0':
 			required = false;
@@ -3107,22 +3122,22 @@ public class MakeParser extends Query
 			required = true;
 			break;
 		}
-		
+
 		return required;
 	}
-	
-	/** 
+
+	/**
 	 * Get exportable name from encoded token
 	 **/
 	public String getElemName(String token)
 	{
 		String name = token.substring(1);
 		String elemName = getXSLName(name);
-		
+
 		return elemName;
 	}
-	
-	/** 
+
+	/**
 	 * Get term name from encoded token
 	 **/
 	public String getTermName(String token)
@@ -3130,16 +3145,16 @@ public class MakeParser extends Query
 		String name = token.substring(1);
 		return name;
 	}
-	
+
 	public void makeAll()
 		throws Exception
 	{
 		mTopLevelElements = getTopLevelElements();
-		
+
 		for(Iterator i = mTopLevelElements.iterator(); i.hasNext(); ) {
 			makeObject((String) i.next(), true);
 		}
-	   
+
 	   writeDescriptionClass(mTopLevelElements, mModelVersion);
 	   writeUtilClass(mModelVersion);
 	   writeResourceClass(mModelVersion);
@@ -3155,7 +3170,7 @@ public class MakeParser extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 
-		PrintStream	out;		
+		PrintStream	out;
 		String	lastObject = "";
 		String	elem = "";
 		String	occur = "";
@@ -3163,24 +3178,24 @@ public class MakeParser extends Query
 		boolean	needFooter = false;
 		ArrayList<String>	objectList = new ArrayList<String>();
 		ArrayList<String>	list = new ArrayList<String>();
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Version='" + mModelVersion  + "'"
 	          + " and ontology.Object='" + object + "'"
 	          + " Order By ontology.Object, ontology.Pointer"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		xmlName = object.replace(" ", "");
-		out = new PrintStream(xmlName + ".java");
+		out = new PrintStream(mOutpath + xmlName + ".java");
 		mFileList.add(xmlName + ".java");
 		setWriter(out);
 	   System.out.println(xmlName);
-	   
+
 		// Get list of elements in object
 		list.clear();
 	   lastObject = "";
@@ -3191,7 +3206,7 @@ public class MakeParser extends Query
 			if(isContainer(elem)) objectList.add(elem);
 	   }
 	   this.endQuery(statement, resultSet);
-	   
+
 		writeHeader(xmlName, mModelVersion, isResource);
 	   writeVariables(list);
 	   writeConstructor(xmlName);
@@ -3202,9 +3217,9 @@ public class MakeParser extends Query
 	   writeSetGet(list);
 	   writeXPathPairs(xmlName, list);
 	   writeFooter(xmlName);
-	   
+
 	   closeWriter();
-	   
+
 	   // Make parsers for all sub objects
 	   for(Iterator i = objectList.iterator(); i.hasNext(); ) {
 	   	makeObject((String) i.next(), false);
@@ -3215,11 +3230,11 @@ public class MakeParser extends Query
 	{
 		// Strip spaces, dashes and single quotes
 		String	buffer;
-		
+
 		buffer = term.replace("-", "");
 		buffer = buffer.replace("\'", "");
 		buffer = buffer.replace(" ", "");
-		
+
 		return buffer;
 	}
 
@@ -3229,27 +3244,27 @@ public class MakeParser extends Query
 		String		query;
 		Statement	statement;
 		ResultSet	resultSet;
-		
+
 		ArrayList	list = new ArrayList();
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Version='" + mModelVersion  + "'"
 	          + " and ontology.Object='Spase'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		list.clear();
 		while(resultSet.next())	{
 			if(isMatch(resultSet.getString("Element"), "Version")) continue;	// Not a resource
 			list.add(resultSet.getString("Element"));
 		}
-		
+
 		this.endQuery(statement, resultSet);
-		
+
 		return list;
 	}
 
@@ -3260,8 +3275,8 @@ public class MakeParser extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -3270,14 +3285,14 @@ public class MakeParser extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("Type");
    	}
 		// Clean-up
 		this.endQuery(statement, resultSet);
-   
+
 	   return buffer;
 	}
 
@@ -3285,7 +3300,7 @@ public class MakeParser extends Query
 		throws Exception
 	{
 		String type = getElementType(term);
-		
+
 		if(isMatch(type, "Container"))	return TypeContainer;
 		if(isMatch(type, "Count"))			return TypeCount;
 		if(isMatch(type, "DateTime"))		return TypeDate;
@@ -3294,14 +3309,14 @@ public class MakeParser extends Query
 		if(isMatch(type, "Item"))			return TypeItem;
 		if(isMatch(type, "Numeric"))		return TypeNumeric;
 		if(isMatch(type, "Text"))			return TypeText;
-		
+
 		// Obsolete as of version 1.2.0
 		if(isMatch(type, "Date"))			return TypeDate;
 		if(isMatch(type, "Time"))			return TypeTime;
-		
+
 		return TypeText;
 	}
-	
+
 	public String getElementList(String term)
 		throws Exception
 	{
@@ -3309,8 +3324,8 @@ public class MakeParser extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -3319,14 +3334,14 @@ public class MakeParser extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("List");
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
 
@@ -3337,59 +3352,59 @@ public class MakeParser extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mModelVersion  + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("List");
 	   }
 		// Clean-up
 	   this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
 
    //===========================================================
    // Utlity functions
    //===========================================================
-   public void setWriter(PrintStream stream) 
+   public void setWriter(PrintStream stream)
    {
     	mWriter = null;
     	mStream = stream;
     	mServlet = null;
    }
-    
-   public void setWriter(javax.servlet.jsp.JspWriter writer) 
+
+   public void setWriter(javax.servlet.jsp.JspWriter writer)
    {
     	mWriter = writer;
     	mStream = null;
     	mServlet = null;
    }
-    
-   public void setWriter(ServletOutputStream stream) 
+
+   public void setWriter(ServletOutputStream stream)
    {
     	mWriter = null;
     	mStream = null;
     	mServlet = stream;
    }
-    
-   public void closeWriter() 
+
+   public void closeWriter()
     	throws Exception
    {
     	if(mWriter != null) mWriter.close();
     	if(mStream != null) mStream.close();
     	if(mServlet != null) mServlet.close();
    }
-    
+
 	public void print(String text)
 	{
     	try {
@@ -3399,7 +3414,7 @@ public class MakeParser extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void printLine(String text)
 	{
     	try {
@@ -3409,13 +3424,13 @@ public class MakeParser extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void printLine(String text, String variable)
 	{
 		String buffer = text.replaceAll("%param%", variable);
 		printLine(buffer);
 	}
-	
+
 	public void printIndent(int indent)
 	{
 		for(int i = 0; i <= indent; i++) print("   ");
@@ -3430,7 +3445,7 @@ public class MakeParser extends Query
 		ResultSet	resultSet;
 
 		String	version = mModelVersion ;
-		
+
 		if(version == null) {
 			query = "select"
 		   		+ " * "
@@ -3438,33 +3453,33 @@ public class MakeParser extends Query
 		   		+ " where"
 		   		+ " history.ID = (Select max(history.ID) from history)"
 			      ;
-		
+
 			statement = this.beginQuery();
 			resultSet = this.select(statement, query);
-			
+
 			while(resultSet.next())	{
 		      version = resultSet.getString("Version");
 		   }
-		   
+
 		   this.endQuery(statement, resultSet);
 		}
 		return version;
 	}
-	
+
 	public String sqlEncode(String text) { return igpp.util.Encode.sqlEncode(text); }
 	public boolean isMatch(String base, String text) { if(base.compareToIgnoreCase(text) == 0) { return true; } return false; }
-	public boolean isInList(ArrayList list, String text) 
-	{ 
+	public boolean isInList(ArrayList list, String text)
+	{
 		String	base;
-		
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			base = (String) i.next();
-			if(base.compareToIgnoreCase(text) == 0) { return true; } 
+			if(base.compareToIgnoreCase(text) == 0) { return true; }
 		}
-		return false; 
+		return false;
 	}
-	
+
 	// Argument passing when a bean
 	public void setVersion(String value) { mModelVersion  = value; }
 	public String getVersion() { return mModelVersion; }
-}	
+}

@@ -3,11 +3,11 @@
 #
 # Author: Todd King
 #
-version=${1:-1.2.0}
+version=${1:-2.2.1}
+homepath=${2:-/c/projects/spase/webapp/ROOT}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
 # Make the schema
-cd /var/www/spase/root/data/schema
-/var/www/spase/root/WEB-INF/runjava.sh org.spase.model.util.MakeXSD $version > spase-$vername.xsd
-
+./runjava.sh org.spase.model.util.MakeXSD $version $homepath"/data" > $homepath/data/schema/spase-$vername.xsd
+cp $homepath/data/schema/spase-$vername.xsd $homepath/docs/schema

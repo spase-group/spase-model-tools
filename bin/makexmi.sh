@@ -3,10 +3,11 @@
 #
 # Author: Todd King
 #
-version=${1:-1.2.0}
+version=${1:-2.2.1}
+homepath=${2:-/c/projects/spase/webapp/ROOT}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
 # Make the UML xmi file
-cd /var/www/spase/root/data/model
-/var/www/spase/root/WEB-INF/runjava.sh org.spase.model.util.MakeXMI $version > spase-$vername.xmi
+./runjava.sh org.spase.model.util.MakeXMI $version $homepath/data > $homepath/data/xmi/spase-$vername.xmi
+cp $homepath/data/xmi/spase-$vername.xmi $homepath/docs/xmi

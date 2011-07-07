@@ -31,15 +31,16 @@ import javax.servlet.http.HttpServletResponse;
 public class MakeXSD extends Query
 {
 	private String	mVersion = "1.0.1";
-	
+
 	private String	mModelVersion = null;
+	private String	mHomepath = "";
 	private boolean mAnnotate = true;
-	
+
 // Database access variables
-	private String mHost = "localhost";
-	private String mDatabase = "spase";
-	private String mUsername = "spase-user";
-	private String mPassword = "my123";
+	private String mHost = "";
+	private String mDatabase = "spase-model.db";
+	private String mUsername = "";
+	private String mPassword = "";
 
 	private JspWriter	mWriter = null;
 	private PrintStream	mStream = null;
@@ -47,8 +48,8 @@ public class MakeXSD extends Query
 
 	ArrayList<String>	mElemList = new ArrayList<String>();
 	ArrayList<String>	mElemLeaf = new ArrayList<String>();
-	
-    /** 
+
+    /**
 	 * Build an XML Schema document based on the SPASE data model specification
 	 * in the data model database.
 	 *<p>
@@ -64,41 +65,47 @@ public class MakeXSD extends Query
 	public static void main(String args[])
    {
 		MakeXSD me = new MakeXSD();
-		   
+
 		if (args.length < 1) {
 			System.err.println("Version: " + me.mVersion);
-			System.err.println("Usage: " + me.getClass().getName() + " version [annotate]");
+			System.err.println("Usage: " + me.getClass().getName() + " version [homepath] [annotate]");
 			System.exit(1);
 		}
-		
+
 		try {
 			me.mModelVersion = args[0];
 			me.mModelVersion = me.getModelVersion();
-	
-			if(args.length > 1) me.mAnnotate = false;
-			
-			me.setDatabase(me.mHost, me.mDatabase);
+			if(args.length > 1) {
+				me.mHomepath = args[1];
+				if( ! me.mHomepath.endsWith("/")) me.mHomepath += "/";
+			}
+
+			if(args.length > 2) me.mAnnotate = false;
+
+			me.setDatabaseDriver("SQLite");
+			me.setDatabase(me.mHost, me.mHomepath + me.mDatabase);
 			me.setUserLogin(me.mUsername, me.mPassword);
 			me.useUser();
-			
+
 			me.setWriter(System.out);
 			me.makeXSD();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
     }
-    
-	public void init() 
-			throws Exception 
+
+	public void init()
+			throws Exception
 	{
+		setDatabaseDriver("SQLite");
 		setDatabase(mHost, mDatabase);
 		setUserLogin(mUsername, mPassword);
 		useUser();
-		
+
 		mModelVersion = getModelVersion();
 	}
-	
-	public void destroy() 
+
+	public void destroy()
 	{
 	}
 
@@ -107,26 +114,26 @@ public class MakeXSD extends Query
     {
     	doGet(request, response);
     }
-    
+
 	public void doGet(HttpServletRequest request, HttpServletResponse response)
-	     throws Exception 
+	     throws Exception
 	{
    	ServletOutputStream out = response.getOutputStream();
-   	
+
    	getModelVersion();
-   	
+
 		response.setContentType("application/data");
 		response.setHeader("Content-Disposition", "attachment; filename=\"spase-" + mModelVersion.replace(".", "_") + ".xsd\"");
-		
+
 		setWriter(out);
 		makeXSD();
 	}
-	
+
 	public void makeXSD()
 		throws Exception
 	{
 		String today = igpp.util.Date.now();
-		
+
 		printLine("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
 		printLine("<!-- Automatically created based on the dictionary stored at http://www.spase-group.org -->");
 		printLine("<!-- Version: " + mModelVersion + " -->");
@@ -136,12 +143,12 @@ public class MakeXSD extends Query
 		printLine("	      targetNamespace=\"http://www.spase-group.org/data/schema\"");
 		printLine("	      xmlns=\"http://www.spase-group.org/data/schema\"");
 		printLine("	      elementFormDefault=\"qualified\">");
-		
+
 		makeTree("Spase", "", true);
 		makeDictionary();
 		makeLists();
 		makeTypes();
-			
+
 		printLine("</xsd:schema>");
 	}
 
@@ -160,7 +167,7 @@ public class MakeXSD extends Query
 		printLine("    </xsd:simpleType>");
 
 	}
-	
+
 	/**
 	 * Generate XML schema description of every list item
 	**/
@@ -173,16 +180,16 @@ public class MakeXSD extends Query
 		String	desc;
 		String	listName;
 		String	buffer;
-		
-		query = "select" 
+
+		query = "select"
 		       + " list.*"
 		       + " from list"
 		       + " where list.Version='" + mModelVersion + "'"
 		       ;
-		
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		printLine("<!-- ================================");
 		printLine("      Lists");
 		printLine("     ================================ -->");
@@ -199,7 +206,7 @@ public class MakeXSD extends Query
 		printLine(1, "</xsd:restriction>");
 		printLine("</xsd:simpleType>");
 
-		// Generate types for each list 			
+		// Generate types for each list
 		while(resultSet.next())	{
 			buffer = resultSet.getString("Name");
 			listName = "enum" + getXSLName(buffer);
@@ -208,10 +215,10 @@ public class MakeXSD extends Query
 			} else {
 				desc = resultSet.getString("Description");
 			}
-		
+
 	   	printLine("<!-- ==========================");
 	      printLine(resultSet.getString("Name"));
-	      printLine("");  
+	      printLine("");
 	      printLine(igpp.util.Text.wordWrap(desc, 40, ""));
 	      printLine("========================== -->");
 
@@ -228,7 +235,7 @@ public class MakeXSD extends Query
 				printLine("</xsd:simpleType>");
 			}
 		}
-		   
+
 		// Clean-up
 	   this.endQuery(statement, resultSet);
 	}
@@ -246,27 +253,27 @@ public class MakeXSD extends Query
 
 		String	itIs = "";
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mModelVersion + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   itIs = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("Type");
 	   	buffer = buffer.trim();
 	   	if(igpp.util.Text.isMatch(buffer, "Enumeration")) itIs = resultSet.getString("List");
 	   }
-	   
+
 		// Clean-up
 	   this.endQuery(statement, resultSet);
-	   
+
 	   return itIs;
 	}
 
@@ -284,17 +291,17 @@ public class MakeXSD extends Query
 		String	buffer;
 		String	enumList;
 		String	closeTag;
-		
-		query = "select" 
+
+		query = "select"
 		       + " member.*"
 		       + " from member"
 		       + " where member.Version='" + mModelVersion + "'"
 		       + " and member.List ='" + list + "'"
 		       ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		while(resultSet.next())	{
 			term = resultSet.getString("Term");
 			buffer = "";
@@ -312,7 +319,7 @@ public class MakeXSD extends Query
 		}
 		// Clean-up
 	   this.endQuery(statement, resultSet);
-	}	   
+	}
 
 	public void makeDictionary()
 		throws Exception
@@ -323,11 +330,11 @@ public class MakeXSD extends Query
 		String	desc;
 		String	group;
 		String	subGroup;
-		
+
 		if(mElemLeaf.isEmpty()) return;
-		
+
 		Object[] elemLeaf = mElemLeaf.toArray();
-		
+
 		java.util.Arrays.sort(elemLeaf);
 		printLine("<!-- ================================");
 		printLine("      Dictionary Terms");
@@ -340,7 +347,7 @@ public class MakeXSD extends Query
 	   	group = getElementGroup(term);
 	   	subGroup = "";
 	   	if(group.length() > 0) subGroup = " substitutionGroup=\"" + group + "\"";
-	   	
+
 	   	// Version is a phantom enueration with the current version number as the only member.
 	   	// The current version number is added in the enumeration definition.
 	   	if(igpp.util.Text.isMatch(term, "Version")) {
@@ -383,28 +390,37 @@ public class MakeXSD extends Query
 		String		desc;
 		String		subGroup;
 		String[]		pair;
-		
+
 		ArrayList elemList = new ArrayList();
 		ArrayList groupList = new ArrayList();
-		
+
 	   if(isElemOutput(term)) return;
-	   
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Object = '" + sqlEncode(term) + "'"
 	          + " and ontology.Version='" + mModelVersion  + "'"
 	          + " Order By ontology.Pointer"
 	          ;
-	
-		statement = this.beginQuery();
-		resultSet = this.select(statement, query);
-		
+
+		// Determine the number of rows
+		// We do htis the hard way since sqlite is a "FORWARD Only" database
+
+	   statement = this.beginQuery();
+	   resultSet = this.select(statement, query);
+	   rows = 0;
+	   while(resultSet.next()) {
+	   	  rows++;
+	   }
+	   this.endQuery(statement, resultSet);
+
+	   // Now query for results
+	   statement = this.beginQuery();
+	   resultSet = this.select(statement, query);
+
 	   itIs = "";
-	   resultSet.last();
-	   rows = resultSet.getRow();
-	   resultSet.first();
-	   
+
 	   if(rows == 0) {	// A leaf
 	   	isElemLeaf(term);
 	   } else { // Not a leaf
@@ -412,13 +428,13 @@ public class MakeXSD extends Query
 	   	// group = resultSet.getString("Group");
 	   	subGroup = "";
 	   	if(group.length() > 0) subGroup = " substitutionGroup=\"" + group + "\"";
-	   	
+
 	   	printLine(0, "");
-		   printLine(1, "<xsd:element name=\"" + getXSLName(term) + "\" type=\"" + getXSLName(term) + "\"" + subGroup + "/>");
+		printLine(1, "<xsd:element name=\"" + getXSLName(term) + "\" type=\"" + getXSLName(term) + "\"" + subGroup + "/>");
 	   	printLine(1, "<xsd:complexType name=\"" + getXSLName(term) +"\">");
 		   printAnnotation(2, desc);
 			printLine(2, "<xsd:sequence>");
-			do {	// We're at the first record coming in to part of the code
+			while(resultSet.next()) {	// We're at the first record coming in to part of the code
 				group = resultSet.getString("Group");
 				if(group.length() > 0) {
 					elemList.add(new String[] {resultSet.getString("Element"), group});
@@ -430,20 +446,20 @@ public class MakeXSD extends Query
 					elemList.add(new String[] {resultSet.getString("Element"), ""});
 		    		printLine(3, "<xsd:element ref=\"" + getXSLName(resultSet.getString("Element")) + "\" " + getXSLOccurance(resultSet.getString("Occurence")) + " /> ");
 				}
-			}	while(resultSet.next());
+			}
 			printLine(2, "</xsd:sequence>");
 			if(addLang) printLine(3, "<xsd:attribute name=\"lang\" type=\"xsd:string\" default=\"en\"/>");
 			printLine(1, "</xsd:complexType>");
 		}
 	   this.endQuery(statement, resultSet);
-		
+
 	   // Extract description of each group
 	   for(int i = 0; i < groupList.size(); i++) {
 	   	printLine(0, "");
     		printLine(1, "<xsd:element name=\"" + ((String) groupList.get(i)) + "\" abstract=\"true\" /> ");
     		// elemList.add(groupList.get(i));
 	   }
-	   
+
 	   // Extract description of each element
 	   for(int i = 0; i < elemList.size(); i++) {
 	   	pair = (String[]) elemList.get(i);
@@ -455,10 +471,10 @@ public class MakeXSD extends Query
 	public boolean isElemOutput(String term)
 	{
 		if(igpp.util.Text.isInList(term, mElemList)) return true;
-		
+
 		/* Add to list */
 		mElemList.add(term);
-		
+
 		return false;
 	}
 
@@ -466,10 +482,10 @@ public class MakeXSD extends Query
 	public boolean isElemLeaf(String term)
 	{
 		if(igpp.util.Text.isInList(term, mElemLeaf)) return true;
-		
+
 		/* Add to list */
 		mElemLeaf.add(term);
-		
+
 		return false;
 	}
 
@@ -477,11 +493,11 @@ public class MakeXSD extends Query
 	{
 		// Strip spaces, dashes and single quotes
 		String	buffer;
-		
+
 		buffer = term.replace("-", "");
 		buffer = buffer.replace("\'", "");
 		buffer = buffer.replace(" ", "");
-		
+
 		return buffer;
 	}
 
@@ -492,30 +508,30 @@ public class MakeXSD extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Element = '" + sqlEncode(term) + "'"
 	          + " and ontology.Version='" + mModelVersion  + "'"
 	          + " Order By ontology.Pointer"
 	          ;
-	
-	
+
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
 			if(buffer.length() == 0) buffer = resultSet.getString("Group");
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
-	
-	
+
+
 	public String getElementDesc(String term)
 		throws Exception
 	{
@@ -523,27 +539,27 @@ public class MakeXSD extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mModelVersion + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("Definition");
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
-	
+
 
 	public String getElementType(String term)
 		throws Exception
@@ -552,8 +568,8 @@ public class MakeXSD extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -562,14 +578,14 @@ public class MakeXSD extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("Type");
    	}
 		// Clean-up
 		this.endQuery(statement, resultSet);
-   
+
 	   return buffer;
 	}
 
@@ -580,8 +596,8 @@ public class MakeXSD extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -590,14 +606,14 @@ public class MakeXSD extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("List");
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
 
@@ -608,24 +624,24 @@ public class MakeXSD extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mModelVersion + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("List");
 	   }
 		// Clean-up
 	   this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
 
@@ -637,19 +653,19 @@ public class MakeXSD extends Query
     	mStream = stream;
     	mServlet = null;
     }
-    
+
     public void setWriter(javax.servlet.jsp.JspWriter writer) {
     	mWriter = writer;
     	mStream = null;
     	mServlet = null;
     }
-    
+
     public void setWriter(ServletOutputStream stream) {
     	mWriter = null;
     	mStream = null;
     	mServlet = stream;
     }
-    
+
 	public void print(String text)
 	{
     	try {
@@ -659,13 +675,13 @@ public class MakeXSD extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void print(int indent, String text)
 	{
 		printIndent(indent);
 		printLine(text);
 	}
-	
+
 	public void printLine(String text)
 	{
     	try {
@@ -675,24 +691,24 @@ public class MakeXSD extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void printLine(int indent, String text)
 	{
 		printIndent(indent);
 		printLine(text);
 	}
-	
+
 	public void printIndent(int indent)
 	{
 		for(int i = 0; i <= indent; i++) print("   ");
 	}
-	
+
 	public String getIndent(int indent)
 	{
 		String	buffer = "";
-		
+
 		for(int i = 0; i <= indent; i++) buffer += "   ";
-		
+
 		return buffer;
 	}
 
@@ -707,7 +723,7 @@ public class MakeXSD extends Query
 		printLine(indent+1, "</xsd:documentation>");
 		printLine(indent, "</xsd:annotation>");
 	}
-	
+
 	public boolean printTerm(String term, int indent, int occur, String pointer)
 		throws Exception
 	{
@@ -716,17 +732,17 @@ public class MakeXSD extends Query
 		ResultSet	resultSet;
 
 		boolean isContainer = false;
-			
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mModelVersion + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		while(resultSet.next())	{
 			print(indent, "<xsd:element name=\"" + term);
 			if(igpp.util.Text.isMatch(resultSet.getString("Type"), "Container")) {
@@ -744,10 +760,10 @@ public class MakeXSD extends Query
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return isContainer;
 	}
-	
+
 
 	public String getXSLType(String type)
 	{
@@ -757,11 +773,11 @@ public class MakeXSD extends Query
 		if(igpp.util.Text.isMatch(type, "Numeric")) return "xsd:double";
 		if(igpp.util.Text.isMatch(type, "Sequence")) return "typeSequence";
 		if(igpp.util.Text.isMatch(type, "Text")) return "xsd:string";
-		
+
 		// Obsolete data types as of version 1.2.0
 		if(igpp.util.Text.isMatch(type, "Date")) return "xsd:dateTime";
 		if(igpp.util.Text.isMatch(type, "Time")) return "xsd:duration";
-		
+
 		return "xsd:string";
 	}
 
@@ -772,10 +788,10 @@ public class MakeXSD extends Query
 		if(igpp.util.Text.isMatch(occur, "1")) return "minOccurs=\"1\" maxOccurs=\"1\"";	// One only
 		if(igpp.util.Text.isMatch(occur, "+")) return "minOccurs=\"1\" maxOccurs=\"unbounded\"";	// At least one, perhaps many
 		if(igpp.util.Text.isMatch(occur, "*")) return "minOccurs=\"0\" maxOccurs=\"unbounded\"";	// Any number
-		
+
 		return "" ;	// Default
 	}
-		
+
 	// Query database for most recent version
 	public String getModelVersion()
 		throws Exception
@@ -785,7 +801,7 @@ public class MakeXSD extends Query
 		ResultSet	resultSet;
 
 		String	version = mModelVersion;
-		
+
 		if(version == null) {
 			query = "select"
 		   		+ " * "
@@ -793,25 +809,25 @@ public class MakeXSD extends Query
 		   		+ " where"
 		   		+ " history.ID = (Select max(history.ID) from history)"
 			      ;
-		
+
 			statement = this.beginQuery();
 			resultSet = this.select(statement, query);
-			
+
 			while(resultSet.next())	{
 		      version = resultSet.getString("Version");
 		   }
-		   
+
 		   this.endQuery(statement, resultSet);
 		}
 		return version;
 	}
-	
+
 	public String sqlEncode(String text) { return igpp.util.Encode.sqlEncode(text); }
-	
+
 	// Argument passing when a bean
 	public void setVersion(String value) { mModelVersion = value; }
 	public String getVersion() { return mModelVersion; }
-	
+
 	public void setVersion(boolean value) { mAnnotate = value; }
 	public boolean getAnnotate() { return mAnnotate; }
 }

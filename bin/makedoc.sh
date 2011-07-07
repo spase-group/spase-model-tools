@@ -7,6 +7,7 @@
 # Author: Todd King
 #
 
-version=${1:-1.2.0}
+version=${1:-2.2.1}
+homepath=${2:-/c/projects/spase/webapp/ROOT}
 # php makedoc.php "&version=$version" | sed '1,5d'
-php makedoc.php $version
+php makedoc.php $version $homepath

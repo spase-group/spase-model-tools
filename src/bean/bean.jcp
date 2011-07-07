@@ -26,6 +26,7 @@
 			<debugger_ref/>
 			<param/>
 			<run>spase.bean.Editor</run>
+			<verify>true</verify>
 		</runtime>
 	</runtimes>
 	<libraries/>

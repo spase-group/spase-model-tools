@@ -1,6 +1,6 @@
 /**
  * Creates an XML style sheet to represent each container of metadata.
- * Each stylesheet is placed in the current directory with the basename 
+ * Each stylesheet is placed in the current directory with the basename
  * of the container.
  * Queries the data model database to build the schema.
  *
@@ -33,14 +33,16 @@ import javax.servlet.http.HttpServletResponse;
 public class MakeXSL extends Query
 {
 	private String	mVersion = "1.0.0";
-	
+
 	private String	mXsdVersion = null;
-	
+	private String	mHomepath = "";
+	private String	mOutpath = "";
+
 // Database access variables
-	private String mHost = "localhost";
-	private String mDatabase = "spase";
-	private String mUsername = "spase-user";
-	private String mPassword = "my123";
+	private String mHost = "";
+	private String mDatabase = "spase-model.db";
+	private String mUsername = "";
+	private String mPassword = "";
 
 	private JspWriter	mWriter = null;
 	private PrintStream	mStream = null;
@@ -48,7 +50,7 @@ public class MakeXSL extends Query
 
 	ArrayList<String>	mElemList = new ArrayList<String>();
 	ArrayList<String>	mElemLeaf = new ArrayList<String>();
-	
+
 	// Enumeration of Type
 	private final int TypeContainer		= 0;
 	private final int TypeCount			= 1;
@@ -58,8 +60,8 @@ public class MakeXSL extends Query
 	private final int TypeNumeric			= 5;
 	private final int TypeText				= 6;
 	private final int TypeTime				= 7;
-	
-    /** 
+
+    /**
 	 * Build an XML Schema document based on the SPASE data model specification
 	 * in the data model database.
 	 *<p>
@@ -76,45 +78,57 @@ public class MakeXSL extends Query
    {
    	boolean	forEdit = true;
 		MakeXSL me = new MakeXSL();
-		   
+
 		if (args.length < 1) {
 			System.err.println("Version: " + me.mVersion);
 			System.err.println("Usage: " + me.getClass().getName() + " version [display|edit]");
 			System.exit(1);
 		}
-		
+
 		// Set XSL style edit or non-edit (display)
 		if(args.length > 1) {
 			if(igpp.util.Text.isMatch(args[1], "display")) forEdit = false;
 			if(igpp.util.Text.isMatch(args[1], "edit")) forEdit = true;
 		}
-		
+
+		if(args.length > 2) {
+			me.mHomepath = args[2];
+			if( ! me.mHomepath.endsWith("/")) me.mHomepath += "/";
+		}
+
+		if(args.length > 3) {
+			me.mOutpath = args[3];
+			if( ! me.mOutpath.endsWith("/")) me.mOutpath += "/";
+		}
+
 		try {
 			me.mXsdVersion = args[0];
-			me.mXsdVersion = me.getModelVersion();
-	
-			me.setDatabase(me.mHost, me.mDatabase);
+
+			System.err.println("Homepath: " + me.mHomepath);
+			me.setDatabaseDriver("SQLite");
+			me.setDatabase(me.mHost, me.mHomepath + me.mDatabase);
 			me.setUserLogin(me.mUsername, me.mPassword);
 			me.useUser();
-			
+
 			me.setWriter(System.out);
 			me.makeAll(forEdit);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
     }
-    
-	public void init() 
-			throws Exception 
+
+	public void init()
+			throws Exception
 	{
-		setDatabase(mHost, mDatabase);
+		setDatabaseDriver("SQLite");
+		setDatabase(mHost, mHomepath + mDatabase);
 		setUserLogin(mUsername, mPassword);
 		useUser();
-		
+
 		mXsdVersion = getModelVersion();
 	}
-	
-	public void destroy() 
+
+	public void destroy()
 	{
 	}
 
@@ -123,39 +137,39 @@ public class MakeXSL extends Query
     {
     	doGet(request, response);
     }
-    
+
 	public void doGet(HttpServletRequest request, HttpServletResponse response)
-	     throws Exception 
+	     throws Exception
 	{
    	ServletOutputStream out = response.getOutputStream();
-   	
+
    	getModelVersion();
-   	
+
 		response.setContentType("application/data");
 		response.setHeader("Content-Disposition", "attachment; filename=\"spase-" + mXsdVersion.replace(".", "_") + ".xsd\"");
-		
+
 		setWriter(out);
 		makeAll();
 	}
-	
+
 	/**
 	 * Scan through list of items and return a list of all "container" items.
 	 *
 	 * @param list	the list of element names to scan.
 	 *
 	 * @return list of container items found in list.
-	 **/	
+	 **/
 	public ArrayList getImportList(ArrayList list)
 		throws Exception
 	{
 		ArrayList	matchList = new ArrayList();
 		String	buffer;
 		String	name;
-		
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			buffer = (String) i.next();	// Occurrence token prepended to name
 			name = buffer.substring(1);
-			
+
 			// Create form entry based on element type
 			switch(getElementTypeToken(name)) {
 			case TypeContainer:
@@ -163,10 +177,10 @@ public class MakeXSL extends Query
 				break;
 			}
 		}
-		
+
 		return matchList;
 	}
-	
+
 	/**
 	 * Scan through list of items and return a list parameters.
 	 * An item with an occurance of 0, 1, or - is a parameter.
@@ -174,12 +188,12 @@ public class MakeXSL extends Query
 	 * @param list	the list of element names to scan.
 	 *
 	 * @return list of parameter items found in list.
-	 **/	
+	 **/
 	public ArrayList getParamList(ArrayList list)
 		throws Exception
 	{
 		ArrayList	matchList = new ArrayList();
-		
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			String buffer = (String) i.next();	// Occurrence token prepended to name
 			char occur = buffer.charAt(0);
@@ -193,7 +207,7 @@ public class MakeXSL extends Query
 					break;
 			}
 		}
-		
+
 		return matchList;
 	}
 
@@ -203,33 +217,33 @@ public class MakeXSL extends Query
 		if(forEdit) writeEditHeader(name, object, isTop, importList, paramList);
 		else writeDisplayHeader(name, isTop, importList, paramList);
 	}
-	
+
 	public void writeFooter(String name, boolean isTop, boolean forEdit)
 		throws Exception
 	{
 		if(forEdit) writeEditFooter(name, isTop);
 		else writeDisplayFooter(name, isTop);
 	}
-	
+
 	public void writeForm(String object, ArrayList list, boolean forEdit)
 		throws Exception
 	{
 		if(forEdit) { writeEditForm(object, list); return; }
 		writeDisplayForm(object, list);
 	}
-	
+
 	public void writeItem(String object, String name, boolean forEdit)
 		throws Exception
 	{
 		if(forEdit) writeEditItem(object, name);
 		else writeDisplayItem(object, name);
 	}
-	
+
 	public void writeEditHeader(String name, String object, boolean isTop, ArrayList list, ArrayList param)
 		throws Exception
 	{
 		String today = igpp.util.Date.now();
-		
+
 		printLine("<?xml version=\"1.0\"?>");
 		printLine("<!--");
 		printLine("Transform " + name + " resource into an editable form.");
@@ -288,11 +302,11 @@ public class MakeXSL extends Query
 			printLine("</td>");
 			printLine("</tr>");
 		}
-		
+
 		printLine("</xsl:template>");
 		printLine("</xsl:stylesheet>");
 	}
-	
+
 	public void writeEditForm(String object, ArrayList list)
 		throws Exception
 	{
@@ -308,22 +322,22 @@ public class MakeXSL extends Query
 		String	filler = "";
 		String	options = "";
 		ArrayList	enumList;
-		
+
 		printLine("");
-							
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			buffer = (String) i.next();	// Occurrence token prepended to name
 			occur = buffer.charAt(0);
 			name = buffer.substring(1);
 			elemName = name.replace(" ", "");
 			paramName = object.replace(" ", "") + elemName;
-			
+
 			// Determine visual attributes based on occurrence
 			filler = "";
 			options = "";
 			multiple = false;
 			value = "";
-			
+
 			switch(occur) {
 			case '0':
 				filler = "";
@@ -356,12 +370,12 @@ public class MakeXSL extends Query
 				value = "current()";
 				break;
 			}
-			
+
 			// Add dictionary lookup
 			options += "<img valign=\"top\" alt=\"Info\" onclick=\"showDictionary('" + name + "');\" src=\"info.gif\" />";
-			
+
 			if(multiple) {	printLine("   <xsl:for-each select=\"" + elemName + "\">");	}
-			
+
 			// Create form entry based on element type
 			switch(getElementTypeToken(name)) {
 			case TypeContainer:
@@ -403,10 +417,10 @@ public class MakeXSL extends Query
 				printLine("   </select>" + options + "</td></tr>");
 				break;
 			}
-			
+
 			if(multiple) {	printLine("   </xsl:for-each>"); }
 		}
-		
+
 		return;
 	}
 
@@ -414,21 +428,21 @@ public class MakeXSL extends Query
 	public void writeParamList(String object, ArrayList list) {
 		// Output referenced templates
 		String	name;
-		
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			String elemName = (String) i.next();
 			elemName = elemName.replace(" ", "");
 			String paramName = object.replace(" ", "") + elemName;
 			printLine("   <xsl:param name=\"" + paramName + "\"><xsl:value-of select=\"" + elemName + "\"/></xsl:param>");
 		}
-	}		
+	}
 
 	public void writeEditItem(String object, String name)
 		throws Exception
 	{
 		String	elemName = name.replace(" ", "");
 		String	paramName = object.replace(" ", "") + elemName;
-		
+
 		printLine("   <xsl:param name=\"" + paramName + "\"><xsl:value-of select=\"" + elemName + "\"/></xsl:param>");
 	}
 
@@ -436,7 +450,7 @@ public class MakeXSL extends Query
 		throws Exception
 	{
 		String today = igpp.util.Date.now();
-		
+
 		printLine("<?xml version=\"1.0\"?>");
 		printLine("<!--");
 		printLine("Transform " + name + " resource into a form suitable to display.");
@@ -474,7 +488,7 @@ public class MakeXSL extends Query
 	{
 		printLine("</table>");
 		printLine("</div>");
-		
+
 		printLine("</xsl:template>");
 		printLine("");
 		printLine("</xsl:stylesheet>");
@@ -496,24 +510,24 @@ public class MakeXSL extends Query
 		String	linkOpen = "";
 		String	linkClose = "";
 		ArrayList	enumList;
-		
+
 		printLine("");
-							
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			buffer = (String) i.next();	// Occurrence token prepended to name
 			occur = buffer.charAt(0);
 			name = buffer.substring(1);
 			elemName = name.replace(" ", "");
 			paramName = elemName;
-			
+
 			if(igpp.util.Text.isMatch(paramName, "ResourceID")) continue;	// Handled in header
-			
+
 			// Determine visual attributes based on occurrence
 			filler = "";
 			options = "";
 			multiple = false;
 			value = "";
-			
+
 			switch(occur) {
 			case '0':
 				multiple = false;
@@ -532,28 +546,28 @@ public class MakeXSL extends Query
 				value = ".";
 				break;
 			}
-			
+
 			linkOpen = "";
 			linkClose = "";
-			
+
 			// Special cases
-			if(igpp.util.Text.isMatch(paramName, "URL")) { 
-				multiple = true; 
-				value = "."; 
+			if(igpp.util.Text.isMatch(paramName, "URL")) {
+				multiple = true;
+				value = ".";
 				linkOpen = "<a href=\"{string(.)}\">";
 				linkClose = "</a>";
 			}
-			if(paramName.endsWith("ID")) { 
-				multiple = true; 
+			if(paramName.endsWith("ID")) {
+				multiple = true;
 				value = ".";
 				linkOpen = "<a href=\"{$ResourceURL}{string(.)}\">";
 				linkClose = "</a>";
 			}
-				
-			if(multiple) {	
-				printLine("   <xsl:for-each select=\"" + elemName + "\">");	
+
+			if(multiple) {
+				printLine("   <xsl:for-each select=\"" + elemName + "\">");
 			}
-			
+
 			// Create form entry based on element type
 			switch(getElementTypeToken(name)) {
 			case TypeContainer:
@@ -584,10 +598,10 @@ public class MakeXSL extends Query
 				printLine("</xsl:if>");
 				break;
 			}
-			
+
 			if(multiple) {	printLine("   </xsl:for-each>"); }
 		}
-		
+
 		return;
 	}
 
@@ -600,13 +614,13 @@ public class MakeXSL extends Query
 	public void writeTemplateList(ArrayList list) {
 		// Output referenced templates
 		String	name;
-		
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			name = (String) i.next();
 			name = name.replace(" ", "");
 			printLine("   <xsl:import href=\"" + name + ".xsl\" />");
 		}
-	}		
+	}
 
 	public String makeAddRemove(String name)
 	{
@@ -629,27 +643,27 @@ public class MakeXSL extends Query
 
 		String	itIs = "";
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mXsdVersion + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   itIs = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("Type");
 	   	buffer = buffer.trim();
 	   	if(igpp.util.Text.isMatch(buffer, "Enumeration")) itIs = resultSet.getString("List");
 	   }
-	   
+
 		// Clean-up
 	   this.endQuery(statement, resultSet);
-	   
+
 	   return itIs;
 	}
 
@@ -667,17 +681,17 @@ public class MakeXSL extends Query
 		String	buffer;
 		String	enumName;
 		ArrayList	enumList = new ArrayList();
-		
-		query = "select" 
+
+		query = "select"
 		       + " member.*"
 		       + " from member"
 		       + " where member.Version='" + mXsdVersion + "'"
 		       + " and member.List ='" + list + "'"
 		       ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		enumList.clear();
 		while(resultSet.next())	{
 			term = resultSet.getString("Term");
@@ -690,9 +704,9 @@ public class MakeXSL extends Query
 		}
 		// Clean-up
 	   this.endQuery(statement, resultSet);
-	   
+
 	   return enumList;
-	}	   
+	}
 
 	public void makeAll()
 		throws Exception
@@ -704,7 +718,7 @@ public class MakeXSL extends Query
 		throws Exception
 	{
 		ArrayList	topLevel = getTopLevelElements();
-		
+
 		for(Iterator i = topLevel.iterator(); i.hasNext(); ) {
 			makeObject((String) i.next(), true, forEdit);
 		}
@@ -717,7 +731,7 @@ public class MakeXSL extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 
-		PrintStream	out;		
+		PrintStream	out;
 		String	lastObject = "";
 		String	elem = "";
 		String	occur = "";
@@ -727,23 +741,23 @@ public class MakeXSL extends Query
 		ArrayList	importList = new ArrayList();
 		ArrayList	paramList = new ArrayList();
 		ArrayList	temp;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Version='" + mXsdVersion  + "'"
 	          + " and ontology.Object='" + object + "'"
 	          + " Order By ontology.Object, ontology.Pointer"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		xmlName = object.replace(" ", "");
-		out = new PrintStream(xmlName + ".xsl");
+		out = new PrintStream(mOutpath + xmlName + ".xsl");
 		setWriter(out);
 	   System.out.println(object);
-		
+
 		// Build up list of elements
 		list.clear();
 		while(resultSet.next())	{
@@ -754,8 +768,8 @@ public class MakeXSL extends Query
 	   importList = getImportList(list);
 	   paramList = getParamList(list);
 		writeHeader(xmlName, object, isTop, forEdit, importList, paramList);
-	   
-	   
+
+
 		// Write out each item
 	   lastObject = "";
 		while(resultSet.next())	{
@@ -767,9 +781,9 @@ public class MakeXSL extends Query
 
 	   writeForm(object, list, forEdit);
 	   writeFooter(object, isTop, forEdit);
-	   
+
 	   closeWriter();
-	   
+
 	   // Make all sub-objects
 	   for(Iterator i = list.iterator(); i.hasNext(); ) {
 	   	String buffer = (String) i.next();
@@ -782,11 +796,11 @@ public class MakeXSL extends Query
 	{
 		// Strip spaces, dashes and single quotes
 		String	buffer;
-		
+
 		buffer = term.replace("-", "");
 		buffer = buffer.replace("\'", "");
 		buffer = buffer.replace(" ", "");
-		
+
 		return buffer;
 	}
 
@@ -796,26 +810,26 @@ public class MakeXSL extends Query
 		String		query;
 		Statement	statement;
 		ResultSet	resultSet;
-		
+
 		ArrayList	list = new ArrayList();
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Version='" + mXsdVersion  + "'"
 	          + " and ontology.Object='Spase'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 		list.clear();
 		while(resultSet.next())	{
 			list.add(resultSet.getString("Element"));
 		}
-		
+
 		this.endQuery(statement, resultSet);
-		
+
 		return list;
 	}
 
@@ -826,8 +840,8 @@ public class MakeXSL extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -836,14 +850,14 @@ public class MakeXSL extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("Type");
    	}
 		// Clean-up
 		this.endQuery(statement, resultSet);
-   
+
 	   return buffer;
 	}
 
@@ -851,7 +865,7 @@ public class MakeXSL extends Query
 		throws Exception
 	{
 		String type = getElementType(term);
-		
+
 		if(isMatch(type, "Container"))	return TypeContainer;
 		if(isMatch(type, "Count"))			return TypeCount;
 		if(isMatch(type, "DateTime"))		return TypeDate;
@@ -860,14 +874,14 @@ public class MakeXSL extends Query
 		if(isMatch(type, "Item"))			return TypeItem;
 		if(isMatch(type, "Numeric"))		return TypeNumeric;
 		if(isMatch(type, "Text"))			return TypeText;
-		
+
 		// Obsolete as of version 1.2.0
 		if(isMatch(type, "Date"))			return TypeDate;
 		if(isMatch(type, "Time"))			return TypeTime;
-		
+
 		return TypeText;
 	}
-	
+
 	public String getElementList(String term)
 		throws Exception
 	{
@@ -875,8 +889,8 @@ public class MakeXSL extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -885,14 +899,14 @@ public class MakeXSL extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("List");
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
 
@@ -903,59 +917,59 @@ public class MakeXSL extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String	buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mXsdVersion + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("List");
 	   }
 		// Clean-up
 	   this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
 
    //===========================================================
    // Utlity functions
    //===========================================================
-   public void setWriter(PrintStream stream) 
+   public void setWriter(PrintStream stream)
    {
     	mWriter = null;
     	mStream = stream;
     	mServlet = null;
    }
-    
-   public void setWriter(javax.servlet.jsp.JspWriter writer) 
+
+   public void setWriter(javax.servlet.jsp.JspWriter writer)
    {
     	mWriter = writer;
     	mStream = null;
     	mServlet = null;
    }
-    
-   public void setWriter(ServletOutputStream stream) 
+
+   public void setWriter(ServletOutputStream stream)
    {
     	mWriter = null;
     	mStream = null;
     	mServlet = stream;
    }
-    
-   public void closeWriter() 
+
+   public void closeWriter()
     	throws Exception
    {
     	if(mWriter != null) mWriter.close();
     	if(mStream != null) mStream.close();
     	if(mServlet != null) mServlet.close();
    }
-    
+
 	public void print(String text)
 	{
     	try {
@@ -965,7 +979,7 @@ public class MakeXSL extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void printLine(String text)
 	{
     	try {
@@ -975,7 +989,7 @@ public class MakeXSL extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void printIndent(int indent)
 	{
 		for(int i = 0; i <= indent; i++) print("   ");
@@ -990,7 +1004,7 @@ public class MakeXSL extends Query
 		ResultSet	resultSet;
 
 		String	version = mXsdVersion;
-		
+
 		if(version == null) {
 			query = "select"
 		   		+ " * "
@@ -998,32 +1012,32 @@ public class MakeXSL extends Query
 		   		+ " where"
 		   		+ " history.ID = (Select max(history.ID) from history)"
 			      ;
-		
+
 			statement = this.beginQuery();
 			resultSet = this.select(statement, query);
-			
+
 			while(resultSet.next())	{
 		      version = resultSet.getString("Version");
 		   }
-		   
+
 		   this.endQuery(statement, resultSet);
 		}
 		return version;
 	}
-	
+
 	public String sqlEncode(String text) { return igpp.util.Encode.sqlEncode(text); }
 	public boolean isMatch(String base, String text) { if(base.compareToIgnoreCase(text) == 0) { return true; } return false; }
-	public boolean isInList(ArrayList list, String text) 
-	{ 
+	public boolean isInList(ArrayList list, String text)
+	{
 		String	base;
-		
+
 		for(Iterator i = list.iterator(); i.hasNext(); ) {
 			base = (String) i.next();
-			if(base.compareToIgnoreCase(text) == 0) { return true; } 
+			if(base.compareToIgnoreCase(text) == 0) { return true; }
 		}
-		return false; 
+		return false;
 	}
-	
+
 	// Argument passing when a bean
 	public void setVersion(String value) { mXsdVersion = value; }
 	public String getVersion() { return mXsdVersion; }

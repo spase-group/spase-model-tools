@@ -20,6 +20,7 @@
 			<debugger_ref/>
 			<param/>
 			<run>spase.util.CodePack</run>
+			<verify>true</verify>
 		</runtime>
 	</runtimes>
 	<libraries/>

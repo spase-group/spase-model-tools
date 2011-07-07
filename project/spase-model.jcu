@@ -2,27 +2,27 @@
 
 <workspace_user>
 	<active_project>
-		<label>bean</label>
+		<label>util</label>
 	</active_project>
 	<projects>
 		<project>
-			<label>util</label>
+			<label>bean</label>
 			<showfiles>false</showfiles>
 		</project>
 		<project>
-			<label>bean</label>
+			<label>util</label>
 			<showfiles>false</showfiles>
 		</project>
 	</projects>
 	<open_files>
 		<docitem>
-			<path>..\src\util\MakeXMI.java</path>
+			<path>..\src\util\MakeXSL.java</path>
 			<source>true</source>
 			<index>0</index>
 			<active>false</active>
 		</docitem>
 		<docitem>
-			<path>..\src\bean\Search.java</path>
+			<path>..\src\util\MakeParser.java</path>
 			<source>true</source>
 			<index>1</index>
 			<active>true</active>

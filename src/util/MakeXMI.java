@@ -31,15 +31,16 @@ import javax.servlet.http.HttpServletResponse;
 public class MakeXMI extends Query
 {
 	private String	mVersion = "1.0.1";
-	
+
 	private String	mModelVersion = null;
+	private String	mHomepath = "";
 	private boolean mAnnotate = true;
-	
+
 // Database access variables
-	private String mHost = "localhost";
-	private String mDatabase = "spase";
-	private String mUsername = "spase-user";
-	private String mPassword = "my123";
+	private String mHost = "";
+	private String mDatabase = "spase-model.db";
+	private String mUsername = "";
+	private String mPassword = "";
 
 	private JspWriter	mWriter = null;
 	private PrintStream	mStream = null;
@@ -48,10 +49,10 @@ public class MakeXMI extends Query
 	ArrayList<String>	mElemList = new ArrayList<String>();
 	ArrayList<String>	mElemLeaf = new ArrayList<String>();
 	ArrayList<String>	mEnumList = new ArrayList<String>();
-	
+
 	private int mAssociationCount = 0;
-	
-	/** 
+
+	/**
 	 * Build an XML Schema document based on the SPASE data model specification
 	 * in the data model database.
 	 *<p>
@@ -67,41 +68,48 @@ public class MakeXMI extends Query
 	public static void main(String args[])
    {
 		MakeXMI me = new MakeXMI();
-		   
+
 		if (args.length < 1) {
 			System.err.println("Version: " + me.mVersion);
-			System.err.println("Usage: " + me.getClass().getName() + " version [annotate]");
+			System.err.println("Usage: " + me.getClass().getName() + " version [homepath] [annotate]");
 			System.exit(1);
 		}
-		
+
 		try {
 			me.mModelVersion = args[0];
 			me.mModelVersion = me.getModelVersion();
-	
-			if(args.length > 1) me.mAnnotate = false;
-			
-			me.setDatabase(me.mHost, me.mDatabase);
+
+			if(args.length > 1) {
+				me.mHomepath = args[1];
+				if( ! me.mHomepath.endsWith("/")) me.mHomepath += "/";
+			}
+
+			if(args.length > 2) me.mAnnotate = false;
+
+			me.setDatabaseDriver("SQLite");
+			me.setDatabase(me.mHost, me.mHomepath + me.mDatabase);
 			me.setUserLogin(me.mUsername, me.mPassword);
 			me.useUser();
-			
+
 			me.setWriter(System.out);
 			me.makeXMI();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
     }
-    
-	public void init() 
-			throws Exception 
+
+	public void init()
+			throws Exception
 	{
+		setDatabaseDriver("SQLite");
 		setDatabase(mHost, mDatabase);
 		setUserLogin(mUsername, mPassword);
 		useUser();
-		
+
 		mModelVersion = getModelVersion();
 	}
-	
-	public void destroy() 
+
+	public void destroy()
 	{
 	}
 
@@ -110,28 +118,28 @@ public class MakeXMI extends Query
     {
     	doGet(request, response);
     }
-    
+
 	public void doGet(HttpServletRequest request, HttpServletResponse response)
-	     throws Exception 
+	     throws Exception
 	{
    	ServletOutputStream out = response.getOutputStream();
-   	
+
    	getModelVersion();
-   	
+
 		response.setContentType("application/data");
 		response.setHeader("Content-Disposition", "attachment; filename='spase-" + mModelVersion.replace(".", "_") + ".xmi'");
-		
+
 		setWriter(out);
 		makeXMI();
 	}
-	
+
 	public void makeXMI()
 		throws Exception
 	{
 		String today = igpp.util.Date.now();
-		
+
 		String packageName = "SPASE_" + mModelVersion.replace(".", "_");
-		
+
 		printLine("<?xml version='1.0' encoding='UTF-8'?>");
 		printLine("<!-- Automatically created based on the dictionary stored at http://www.spase-group.org -->");
 		printLine("<!-- Version: " + mModelVersion + " -->");
@@ -141,11 +149,11 @@ public class MakeXMI extends Query
 		printLine(1, "<uml:Model name='SPASE_MODEL' xmi:id='SPASE_MODEL' visibility='public'>");
 
 		printLine(1, "<packagedElement xmi:type='uml:Package' xmi:id='" + packageName + "' name='" + packageName + "' visibility='public'>");
-		
+
 		makeTree("Spase", "");
 		makeTypes();
 		makeEnum();
-		
+
 		printLine(1, "</packagedElement>");
 		printLine(1, "</uml:Model>");
 		printLine(1, "</xmi:XMI>");
@@ -168,12 +176,12 @@ public class MakeXMI extends Query
 		printLine(1, "<ownedMember xmi:type='uml:DataType' name='Sequence' visibility='public' xmi:id='Sequence'/>");
 		printLine(1, "<ownedMember xmi:type='uml:DataType' name='String' visibility='public' xmi:id='String'/>");
 		printLine(1, "<ownedMember xmi:type='uml:DataType' name='URL' visibility='public' xmi:id='URL'/>");
-		
+
 		// Older types ???
 		printLine(1, "<ownedMember xmi:type='uml:DataType' name='DataExtent' visibility='public' xmi:id='DataExtent'/>");
 		printLine(1, "<ownedMember xmi:type='uml:DataType' name='TimeSpan' visibility='public' xmi:id='TimeSpan'/>");
 	}
-	
+
 	/**
 	 * Generate XML schema description for enumerations
 	**/
@@ -183,8 +191,7 @@ public class MakeXMI extends Query
 		String	query;
 		Statement	statement;
 		ResultSet	resultSet;
-		int			rows = 0;
-		
+
 		String	name = "";
 		String	enumName = "";
 
@@ -192,19 +199,16 @@ public class MakeXMI extends Query
 		printLine("      Enumerations");
 		printLine("     ================================ -->");
 
-	   query = "select distinct" 
+	   query = "select distinct"
 	          + " member.List"
 	          + " from member"
 	          + " where member.Version='" + mModelVersion  + "'"
 	          + " Order By member.List"
 	          ;
-	
-		statement = this.beginQuery();
-		resultSet = this.select(statement, query);
-		
-	   resultSet.last();
-	   rows = resultSet.getRow();
-	   resultSet.first();
+
+	    // Now query for results
+	    statement = this.beginQuery();
+	    resultSet = this.select(statement, query);
 
 		do {
 			name = resultSet.getString("List");
@@ -216,11 +220,11 @@ public class MakeXMI extends Query
 			makeEnumValues(getXMIName(name), "", name);
 			printLine(1, "</packagedElement>");
 		}	while(resultSet.next());
-		
+
 	   this.endQuery(statement, resultSet);
 	}
-	
-	
+
+
 	/**
 	 * Generate XML schema description for enumerations
 	 *
@@ -233,28 +237,25 @@ public class MakeXMI extends Query
 		String	query;
 		Statement	statement;
 		ResultSet	resultSet;
-		int			rows = 0;
-		
+
 		String	listName = getXMIName(list);
 		String	value = "";
 		String	enumValue = "";
 		String	id;
 
-	   query = "select" 
+	   query = "select"
 	          + " member.Term"
 	          + " from member"
 	          + " where member.List = '" + sqlEncode(list) + "'"
 	          + " and member.Version='" + mModelVersion  + "'"
 	          + " Order By member.Term"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
-	   resultSet.first();
-	   
+
 	   if(prefix.length() > 0) prefix += ".";
-	   
+
 		do {
 			value = resultSet.getString("Term");
 			enumValue = getXMIName(value);
@@ -268,10 +269,10 @@ public class MakeXMI extends Query
 				makeEnumValues(parent, prefix + enumValue, value);
 			}
 		}	while(resultSet.next());
-		
+
 	   this.endQuery(statement, resultSet);
 	}
-	
+
 	public void makeTree(String term, String group)
 		throws Exception
 	{
@@ -280,8 +281,8 @@ public class MakeXMI extends Query
 		ResultSet	resultSet;
 		int			rows = 0;
 		String[]		list;
-	
-		String		className;	
+
+		String		className;
 		String 		elemName;
 		String 		name;
 		String		id;
@@ -290,35 +291,43 @@ public class MakeXMI extends Query
 		String		lower;
 		String		upper;
 		String		aggtype;
-		
+
 		ArrayList elemList = new ArrayList();
 		ArrayList assocList = new ArrayList();
-		
+
 	   if(isElemOutput(term)) return;
-	   
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Object = '" + sqlEncode(term) + "'"
 	          + " and ontology.Version='" + mModelVersion  + "'"
 	          + " Order By ontology.Pointer"
 	          ;
-	
-		statement = this.beginQuery();
-		resultSet = this.select(statement, query);
-		
-	   resultSet.last();
-	   rows = resultSet.getRow();
-	   resultSet.first();
-	   
+
+		// Determine the number of rows
+		// We do htis the hard way since sqlite is a "FORWARD Only" database
+
+	   statement = this.beginQuery();
+	   resultSet = this.select(statement, query);
+	   rows = 0;
+	   while(resultSet.next()) {
+	   	  rows++;
+	   }
+	   this.endQuery(statement, resultSet);
+
+	   // Now query for results
+	   statement = this.beginQuery();
+	   resultSet = this.select(statement, query);
+
 	   if(rows == 0) {	// A leaf
 	   	isElemLeaf(term);
 	   } else { // Not a leaf
 	   	className = getXMIName(term);
-	   	
+
 			printLine(2, "<packagedElement"
 				+ " xmi:type='uml:Class'"
-				+ " name='" + className + "'" 
+				+ " name='" + className + "'"
 				+ " xmi:id='"  + className + "'"
 				+ " visibility='public' "
 				+ " isAbstract='false' isActive='false' isLeaf='false'>");
@@ -339,8 +348,8 @@ public class MakeXMI extends Query
 					id = getAssociationName(className, elemName) + "_a";
 				}
 				id_b = getAssociationName(className, elemName) + "_b";
-								
-				printLine(3, "<ownedAttribute  xmi:type='uml:Property' name='" + name + "' xmi:id='"  + id + "' type='" + getXMIType(elemName) 
+
+				printLine(3, "<ownedAttribute  xmi:type='uml:Property' name='" + name + "' xmi:id='"  + id + "' type='" + getXMIType(elemName)
 					+ "' aggregation='" + aggtype + "' "  + getAssociation(className, elemName) + " ownerScope='instance' visibility='public'>");
 				printLine(4, "<ownedComment xmi:type='uml:Comment' xmi:id='" + id + "_doc' body='" + igpp.util.Encode.htmlEncode(getElementDesc(elemName)) +"' >");
 				printLine(5, "<annotatedElement xmi:idref='" + id + "'/>");
@@ -381,7 +390,7 @@ public class MakeXMI extends Query
 				printLine(3, "</ownedEnd>");
 			printLine(2, "</packagedElement>");
 		}
-	   
+
 	   // Extract description of each element
 	   for(int i = 0; i < elemList.size(); i++) {
 	   	list = (String[]) elemList.get(i);
@@ -397,10 +406,10 @@ public class MakeXMI extends Query
   		if(igpp.util.Text.isMatch(buffer, "container")) {
   			return "assoc_" + getXMIName(className) + "_" + getXMIName(term);
    	}
-   
+
 	   return "";
 	}
-   
+
 	/* Determine the association attribute */
 	public String getAssociation(String className, String term)
 		throws Exception
@@ -409,18 +418,18 @@ public class MakeXMI extends Query
   		if(igpp.util.Text.isMatch(buffer, "container")) {
   			return "association='" + getAssociationName(className, term) + "_a' ";
    	}
-   
+
 	   return "";
 	}
-	
+
 	/* Check if a term is in the output list. Add it if not. */
 	public boolean isElemOutput(String term)
 	{
 		if(igpp.util.Text.isInList(term, mElemList)) return true;
-		
+
 		/* Add to list */
 		mElemList.add(term);
-		
+
 		return false;
 	}
 
@@ -432,7 +441,7 @@ public class MakeXMI extends Query
 			buffer = getElementType(term);
 		} catch(Exception e) {
 		}
-		
+
 		if(igpp.util.Text.isMatch(buffer, "Container")) return true;
 
 		return false;
@@ -446,7 +455,7 @@ public class MakeXMI extends Query
 			buffer = getElementType(term);
 		} catch(Exception e) {
 		}
-		
+
 		if(igpp.util.Text.isMatch(buffer, "Enumeration")) return true;
 
 		return false;
@@ -456,10 +465,10 @@ public class MakeXMI extends Query
 	public boolean isElemLeaf(String term)
 	{
 		if(igpp.util.Text.isInList(term, mElemLeaf)) return true;
-		
+
 		/* Add to list */
 		mElemLeaf.add(term);
-		
+
 		return false;
 	}
 
@@ -467,11 +476,11 @@ public class MakeXMI extends Query
 	{
 		// Strip spaces, dashes and single quotes
 		String	buffer;
-		
+
 		buffer = term.replace("-", "");
 		buffer = buffer.replace("\'", "");
 		buffer = buffer.replace(" ", "");
-		
+
 		return buffer;
 	}
 
@@ -482,29 +491,29 @@ public class MakeXMI extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " ontology.*"
 	          + " from ontology"
 	          + " where ontology.Element = '" + sqlEncode(term) + "'"
 	          + " and ontology.Version='" + mModelVersion  + "'"
 	          + " Order By ontology.Pointer"
 	          ;
-	
-	
+
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("Group");
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
-	
+
 	public String getElementDesc(String term)
 		throws Exception
 	{
@@ -512,27 +521,27 @@ public class MakeXMI extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
 	          + " and dictionary.Version='" + mModelVersion + "'"
 	          ;
-	
+
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
 	   	buffer = resultSet.getString("Definition");
 	   }
 		// Clean-up
 		this.endQuery(statement, resultSet);
-	   
+
 	   return buffer;
 	}
-	
+
 
 	public String getElementType(String term)
 		throws Exception
@@ -541,8 +550,8 @@ public class MakeXMI extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -551,14 +560,14 @@ public class MakeXMI extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("Type");
    	}
 		// Clean-up
 		this.endQuery(statement, resultSet);
-   
+
 	   return buffer;
 	}
 
@@ -570,8 +579,8 @@ public class MakeXMI extends Query
 		Statement	statement;
 		ResultSet	resultSet;
 		String		buffer;
-		
-	   query = "select" 
+
+	   query = "select"
 	          + " dictionary.*"
 	          + " from dictionary"
 	          + " where dictionary.Term = '" + sqlEncode(term) + "'"
@@ -580,14 +589,14 @@ public class MakeXMI extends Query
 
 		statement = this.beginQuery();
 		resultSet = this.select(statement, query);
-		
+
 	   buffer = "";
 		while(resultSet.next())	{
    		buffer = resultSet.getString("List");
    	}
 		// Clean-up
 		this.endQuery(statement, resultSet);
-   
+
 	   return buffer;
 	}
 
@@ -604,7 +613,7 @@ public class MakeXMI extends Query
   		if(igpp.util.Text.isMatch(buffer, "Text")) {	// Change - conflicts with "Text" enumeration
   			buffer = "String";	// Its a data type
    	}
-   
+
 	   return getXMIName(buffer);
 	}
 
@@ -615,7 +624,7 @@ public class MakeXMI extends Query
   		if(igpp.util.Text.isMatch(buffer, "container")) {
   			return "composite";
    	}
-   
+
 	   return "none";
 	}
 
@@ -627,19 +636,19 @@ public class MakeXMI extends Query
     	mStream = stream;
     	mServlet = null;
     }
-    
+
     public void setWriter(javax.servlet.jsp.JspWriter writer) {
     	mWriter = writer;
     	mStream = null;
     	mServlet = null;
     }
-    
+
     public void setWriter(ServletOutputStream stream) {
     	mWriter = null;
     	mStream = null;
     	mServlet = stream;
     }
-    
+
 	public void print(String text)
 	{
     	try {
@@ -649,13 +658,13 @@ public class MakeXMI extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void print(int indent, String text)
 	{
 		printIndent(indent);
 		printLine(text);
 	}
-	
+
 	public void printLine(String text)
 	{
     	try {
@@ -665,24 +674,24 @@ public class MakeXMI extends Query
     	} catch(Exception e) {
     	}
 	}
-	
+
 	public void printLine(int indent, String text)
 	{
 		printIndent(indent);
 		printLine(text);
 	}
-	
+
 	public void printIndent(int indent)
 	{
 		for(int i = 0; i <= indent; i++) print("   ");
 	}
-	
+
 	public String getIndent(int indent)
 	{
 		String	buffer = "";
-		
+
 		for(int i = 0; i <= indent; i++) buffer += "   ";
-		
+
 		return buffer;
 	}
 
@@ -695,11 +704,11 @@ public class MakeXMI extends Query
 		if(igpp.util.Text.isMatch(type, "Sequence")) return "string_id";
 		if(igpp.util.Text.isMatch(type, "Text")) return "string_id";
 		if(igpp.util.Text.isMatch(type, "Item")) return "string_id";
-		
+
 		// Obsolete data types as of version 1.2.0
 		if(igpp.util.Text.isMatch(type, "Date")) return "string_id";
 		if(igpp.util.Text.isMatch(type, "Time")) return "string_id";
-		
+
 		return type;
 	}
 
@@ -710,10 +719,10 @@ public class MakeXMI extends Query
 		if(igpp.util.Text.isMatch(occur, "1")) return "1";	// One only
 		if(igpp.util.Text.isMatch(occur, "+")) return "1";	// At least one, perhaps many
 		if(igpp.util.Text.isMatch(occur, "*")) return "0";	// Any number
-		
+
 		return "" ;	// Default
 	}
-		
+
 	public String getXMIUpperValue(String occur)
 	{
 		occur = occur.trim();
@@ -721,10 +730,10 @@ public class MakeXMI extends Query
 		if(igpp.util.Text.isMatch(occur, "1")) return "1";	// One only
 		if(igpp.util.Text.isMatch(occur, "+")) return "*";	// At least one, perhaps many
 		if(igpp.util.Text.isMatch(occur, "*")) return "*";	// Any number
-		
+
 		return "" ;	// Default
 	}
-		
+
 	// Query database for most recent version
 	public String getModelVersion()
 		throws Exception
@@ -734,7 +743,7 @@ public class MakeXMI extends Query
 		ResultSet	resultSet;
 
 		String	version = mModelVersion;
-		
+
 		if(version == null) {
 			query = "select"
 		   		+ " * "
@@ -742,25 +751,25 @@ public class MakeXMI extends Query
 		   		+ " where"
 		   		+ " history.ID = (Select max(history.ID) from history)"
 			      ;
-		
+
 			statement = this.beginQuery();
 			resultSet = this.select(statement, query);
-			
+
 			while(resultSet.next())	{
 		      version = resultSet.getString("Version");
 		   }
-		   
+
 		   this.endQuery(statement, resultSet);
 		}
 		return version;
 	}
-	
+
 	public String sqlEncode(String text) { return igpp.util.Encode.sqlEncode(text); }
-	
+
 	// Argument passing when a bean
 	public void setVersion(String value) { mModelVersion = value; }
 	public String getVersion() { return mModelVersion; }
-	
+
 	public void setVersion(boolean value) { mAnnotate = value; }
 	public boolean getAnnotate() { return mAnnotate; }
 }

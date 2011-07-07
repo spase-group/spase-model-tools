@@ -3,23 +3,25 @@
 #
 # Author: Todd King
 #
-version=${1:-1.2.0}
+version=${1:-2.2.1}
+homepath=${2:-/c/projects/spase/webapp/ROOT}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
+# Make XSL directory for build
+mkdir $homepath/tools/stylesheet/html/xsl
+
 # Make the editor XSL
-cd /var/www/temp/spase/build/xsl
-mkdir edit$verpack
-cd edit$verpack
-/var/www/spase/root/WEB-INF/runjava.sh org.spase.model.util.MakeXSL $version edit
+mkdir $homepath/tools/stylesheet/html/xsl/editor$verpack
+./runjava.sh org.spase.model.util.MakeXSL $version edit $homepath/data $homepath/tools/stylesheet/html/xsl/editor$verpack
 
 # Make the display XSL
-cd /var/www/temp/spase/build/xsl
-mkdir display$verpack
-cd display$verpack
-/var/www/spase/root/WEB-INF/runjava.sh org.spase.model.util.MakeXSL $version display
+mkdir $homepath/tools/stylesheet/html/xsl/display$verpack
+./runjava.sh org.spase.model.util.MakeXSL $version display $homepath/data $homepath/tools/stylesheet/html/xsl/display$verpack
 
 # Package XSL files
-cd /var/www/temp/spase/build
+cd $homepath/tools/stylesheet/html/
 zip -r spase-xsl-$verpack.zip xsl/editor$verpack xsl/display$verpack
-cp spase-xsl-$verpack.zip /var/www/spase/root/tools/stylesheet/html
+
+# Clean-up
+rm -r -f xsl

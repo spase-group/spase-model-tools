@@ -3,22 +3,23 @@
 // Designed for the SPASE website envronment.
 // Written by: Todd King (June 2005)
 // Copyright 2005 Regents University of California. All Rights Reserved
-define('FPDF_FONTPATH','/var/www/fpdf/font/');
+$Homepath = "/var/www/spase/ROOT";
+
+define('FPDF_FONTPATH',"fpdf/font/");
 require('fpdf.php');
 // Load passed arguments - stored in the array $Parameter
 // for ($i=1; $i < $argc; $i++) {include($argv[$i]);}
 
+date_default_timezone_set('America/Los_Angeles');
+
 // Database access variables
-$Host = "127.0.0.1";
-$Database = "spase";
-$Username = "spase-user";
-$Password = "my123";
+$Database = "/data/spase-model.db";
 
 $TOC = array();
 $IndexTemp = array();
 $Index = array();
 
-$Doclet = "/var/www/spase/root/data/doclet/";
+$Doclet = "$Homepath/data/doclet/";
 
 $DatabaseConn = NULL;
 
@@ -433,17 +434,18 @@ function MakeDictionary()
    global $Document;
    global $Version;
    global $Generation;
+   global $DatabaseConn;
 
 	$needLine = 0;
 	
 	// Query dictionary and create and entry for each item
 	$query = "select" 
-	       . " dictionary.*"
+	       . " *"
 	       . " from dictionary"
 	       . " where dictionary.Version = '" . $Version . "'"
 	       . " order by dictionary.Term"
 	       ;
-	$result = mysql_query($query);
+	$result = $DatabaseConn->query($query);
 	if(!$result) {
 	   $this->Write($Document['LineSpace'], "Error in query: " . $query);
 	   $this->Output();
@@ -454,22 +456,22 @@ function MakeDictionary()
 	$this->PageDefaults();
 	$this->SetFont('', '', $Document['FontSizeDef']);
 	
-	while(($row = mysql_fetch_object($result)) != null) {
+	while($row = $result->fetchArray()) {
 		if($needLine) $this->Ln();
 		$needLine = 1;
 	   $this->Ln();
-	   $this->EntryHeader($row->Term, $row->Type, 1);
-	   $this->EntryText($row->Definition);
+	   $this->EntryHeader($row['Term'], $row['Type'], 1);
+	   $this->EntryText($row['Definition']);
 	   // $this->Ln();
 	   // Sub-elements - Old style
-		if(strlen($row->Elements) > 0) {
+		if(strlen($row['Elements']) > 0) {
 		   $this->Ln();
 		   $this->Indent(1);
 		   $this->Write($Document['LineSpace'], "Sub-elements: ");
 		   $x = $this->GetX();
          $this->SetLeftMargin($x);
          // $this->SetX($x);
-			$list = explode(",", $row->Elements);
+			$list = explode(",", $row['Elements']);
 			$n = count($list);
 			for($i = 0; $i < $n; $i++) {
 			   $this->Write($Document['LineSpaceDef'], $list[$i]);
@@ -481,14 +483,14 @@ function MakeDictionary()
 		}
 
 		// Show attributes - if any
-		if(strlen($row->Attributes) > 0) {
+		if(strlen($row['Attributes']) > 0) {
    		$this->Ln();
 		   $this->Indent(1);
 		   $this->Write($Document['LineSpaceDef'], "Attributes: ");
 		   $x = $this->GetX();
          $this->SetLeftMargin($x);
          // $this->SetX($x);
-			$list = explode(",", $row->Attributes);
+			$list = explode(",", $row['Attributes']);
 			$n = count($list);
 			for($i = 0; $i < $n; $i++) {
 			   $this->Write($Document['LineSpaceDef'], $list[$i]);
@@ -501,14 +503,14 @@ function MakeDictionary()
 		
 		if($Generation < 2) {
 			// Show sub-elements - if any
-			if(strlen($row->Elements) > 0) {
+			if(strlen($row['Elements']) > 0) {
 	   		$this->Ln();
 			   $this->Indent(1);
 			   $this->Write($Document['LineSpaceDef'], "Sub-elements: ");
 			   $x = $this->GetX();
 	         $this->SetLeftMargin($x);
 	         // $this->SetX($x);
-				$list = explode(",", $row->Elements);
+				$list = explode(",", $row['Elements']);
 				$n = count($list);
 				for($i = 0; $i < $n; $i++) {
 				   $this->Ln();
@@ -520,21 +522,21 @@ function MakeDictionary()
 		   }         
 		} else { 	// Sub-elements
 			$query2 = "select" 
-			       . " ontology.*"
+			       . " *"
 			       . " from ontology"
-			       . " where ontology.Object = '" . $this->sqlencode($row->Term) . "'"
+			       . " where ontology.Object = '" . $this->sqlencode($row['Term']) . "'"
 		          . " and ontology.Version='" . $Version  . "'"
 			       . " order by ontology.Element"
 			       ;
 		
-		   $result2 = mysql_query($query2);
+		   $result2 = $DatabaseConn->query($query2);
 		   if(!$result2) {
 		          print "Error in query: " . $query2;
 		          done();
 		   }
 				        
 			$needHeader = 1;
-		   while(($row2 = mysql_fetch_object($result2)) != null) {	
+		   while($row2 = $result2->fetchArray()) {	
 		   	if($needHeader) {		
 				   $this->Ln();
 			   	$this->Indent(1);
@@ -544,7 +546,7 @@ function MakeDictionary()
 	         	$needHeader = 0;
 	         }
 			   $this->Ln();
-			   $this->Write($Document['LineSpaceDef'], $row2->Element);
+			   $this->Write($Document['LineSpaceDef'], $row2['Element']);
 			   $needLine = 0;
 			}
 			if(! $needHeader) {	// Finish out list
@@ -553,33 +555,32 @@ function MakeDictionary()
 		   	$this->SetX($Document['LeftMargin']);
 	   	}
 	   	
-	   	mysql_free_result($result2);
 	   }
 	
 		// Referenced list
-		if(strlen($row->List) > 0) {
+		if(strlen($row['List']) > 0) {
 			if($Generation < 2) {
 	   		$this->Ln();
 			   $this->Indent(1);
-			   $this->Write($Document['LineSpaceDef'], 'see ' . $row->List . ' List');
+			   $this->Write($Document['LineSpaceDef'], 'see ' . $row['List'] . ' List');
 			   $needLine = 0;
 			} else {
 		      $query2 = "select" 
-		                . " list.*"
+		                . " *"
 		                . " from list"
-		                . " where list.Name = '" . $this->sqlencode($row->List)  . "'"
+		                . " where list.Name = '" . $this->sqlencode($row['List'])  . "'"
 		                . " and list.Version='" . $Version  . "'"
 		                . " order by list.Name"
 		                ;
 		
-		      $result2 = mysql_query($query2);
+		      $result2 = $DatabaseConn->query($query2);
 		      if(!$result2) {
 		              print "Error in query: " . $query2;
 		              done();
 		      }
 		
 				$needHeader = 1;
-		      while(($row2 = mysql_fetch_object($result2)) != null) {
+		      while($row2 = $result2->fetchArray()) {
 				   if($needHeader) {
 				   	$this->Ln();
 				   	$this->Indent(1);
@@ -589,35 +590,15 @@ function MakeDictionary()
 		         	$needHeader = 0;
 		         }
 		         
-					if(strcmp($row2->Type, "Open") == 0) {
+					if(strcmp($row2['Type'], "Open") == 0) {
 				   	$this->Ln();
-				   	$this->Write($Document['LineSpaceDef'], "For a current list see $row2->Reference");				
-				  	} else {				// Closed - query for allowed values
-				  		$this->MakeEnum("", $row->List);
-				  		/*
-						$query3 = "select *" 
-						       . " from member"
-						       . " where member.List = '" . $this->sqlencode($row->List) . "'"
-			                . " and member.Version='" . $Version  . "'"
-						       . " order by member.Term"
-						       ;
-			
-					   $result3 = mysql_query($query3);
-					   if(!$result3) {
-					          print "Error in query: " . $query3;
-					          done();
-					   }
-							        
-					   while(($row3 = mysql_fetch_object($result3)) != null) {	
-						   $this->Ln();
-						   $this->Write($Document['LineSpaceDef'], $row3->Term);
-						}
-				   	mysql_free_result($result3);
-				   	*/
+				   	$this->Write($Document['LineSpaceDef'], "For a current list see " . $row2['Reference']);				
+				  } else {				// Closed - query for allowed values
+				  		$this->MakeEnum("", $row['List']);
 					}
 					$needLine = 0;
 				}
-		   	mysql_free_result($result2);
+
 				if(! $needHeader) {	// Finish out list
 		   		$this->Ln();
 			   	$this->SetLeftMargin($Document['LeftMargin']);
@@ -627,8 +608,6 @@ function MakeDictionary()
 		}
 	}
 	
-	// Clean-up
-	mysql_free_result($result);
 }
 
 function MakeDataType()
@@ -636,17 +615,18 @@ function MakeDataType()
    global $Document;
    global $Version;
    global $Generation;
+   global $DatabaseConn;
 
 	$needLine = 0;
 	
 	// Query data type table and create and entry for each item
 	$query = "select" 
-	       . " type.*"
+	       . " *"
 	       . " from type"
 	       . " where type.Version = '" . $Version . "'"
 	       . " order by type.Name"
 	       ;
-	$result = mysql_query($query);
+	$result = $DatabaseConn->query($query);
 	if(!$result) {
 	   $this->Write($Document['LineSpace'], "Error in query: " . $query);
 	   $this->Output();
@@ -655,17 +635,15 @@ function MakeDataType()
 	
 	$this->SetFont('', '', $Document['FontSizeDef']);
 	
-	while(($row = mysql_fetch_object($result)) != null) {
+	while($row = $result->fetchArray()) {
 		$this->SetFont('', 'B');
-		$this->Write($Document['LineSpace'], "$row->Name");
+		$this->Write($Document['LineSpace'], $row['Name']);
 		$this->SetFont('', '');
-		$this->Write($Document['LineSpace'], ": $row->Description");
+		$this->Write($Document['LineSpace'], ": ", $row['Description']);
 		$this->Ln();
 		$this->Ln();
 	}
 	
-	// Clean-up
-	mysql_free_result($result);
 }
 
 // Determine if a dictionary term is an enumeration
@@ -673,27 +651,26 @@ function MakeDataType()
 function GetEnumeration($term)
 {
 	global $Version;
+	global $DatabaseConn;
 	
    $query = "select" 
-          . " dictionary.*"
+          . " *"
           . " from dictionary"
           . " where dictionary.Term = '" . $this->sqlencode($term)  . "'"
           . " and dictionary.Version='" . $Version  . "'"
           ;
 
-   $result = mysql_query($query);
+   $result = $DatabaseConn->query($query);
    if(!$result) {
       print "Error in query: " . $query;
       done();
    }
    
    $itIs = "";
-   while(($row = mysql_fetch_object($result)) != null) {
-   	$buffer = trim($row->Type);
-   	if($buffer == 'Enumeration') $itIs = $row->List;
+   while($row = $result->fetchArray()) {
+   	$buffer = trim($row['Type']);
+   	if($buffer == 'Enumeration') $itIs = $row['List'];
    }
-	// Clean-up
-   mysql_free_result($result);
    
    return $itIs;
 }
@@ -703,22 +680,23 @@ function MakeEnum($prefix, $list)
 {
    global $Document;
    global $Version;
+   global $DatabaseConn;
 
 	$query = "select" 
-	       . " member.*"
+	       . " *"
 	       . " from member"
 	       . " where member.Version='" . $Version  . "'"
 	       . " and member.List ='" . $this->sqlencode($list) . "'"
 	       ;
 
-	$result = mysql_query($query);
+	$result = $DatabaseConn->query($query);
 	if(!$result) {
 	   print "Error in query: " . $query;
 	   done();
 	}
 	   
-	while(($row = mysql_fetch_object($result)) != null) {
-		$term = $row->Term;
+	while($row = $result->fetchArray()) {
+		$term = $row['Term'];
 		$buffer = "";
 		if(strlen($prefix) > 0) $buffer .= $prefix . ".";
 		$buffer .= $term;
@@ -727,14 +705,13 @@ function MakeEnum($prefix, $list)
 		$enumList = $this->GetEnumeration($term);
 		if(strlen($enumList) != 0) $this->MakeEnum($buffer, $enumList);
 	}
-	// Clean-up
-   mysql_free_result($result);
 }
 
 function MakeMember($item)
 {
 	global $Document;
 	global $Version;
+	global $DatabaseConn;
 	
 	$w = array(50, 100);	// Cell widths
 	
@@ -750,7 +727,7 @@ function MakeMember($item)
 	       . " order by list.Name"
 	       ;
 
-	$result = mysql_query($query);
+	$result = $DatabaseConn->query($query);
 	if(!$result) {
 	   $this->Write($Document['LineSpace'], "Error in query: " . $query);
 	   $this->Output();
@@ -758,7 +735,7 @@ function MakeMember($item)
 	}
 			
 	$first = 1;
-	while(($row = mysql_fetch_object($result)) != null) {
+	while($row = $result->fetchArray()) {
 	   if($first) {
 	   	$first = 0;
 	   	// Table header
@@ -778,11 +755,11 @@ function MakeMember($item)
 	   $x = $Document['LeftMargin'] + $Document['Indent'];
 	   $this->SetLeftMargin($x);
 	   $this->SetX($x);
-	   $this->Write($Document['LineSpace'], $row->Term);
+	   $this->Write($Document['LineSpace'], $row['Term']);
 	   $x = $Document['LeftMargin'] + $Document['Indent'] + $w[0];
 	   $this->SetLeftMargin($x);
       $this->SetX($x);
-	   $this->MultiCell($w[1], 5, $row->Definition, 0, 'L');
+	   $this->MultiCell($w[1], 5, $row['Definition'], 0, 'L');
 	}
 }
 
@@ -791,27 +768,28 @@ function MakeList()
 	global $Document;
 	global $Version;
 	global $Generation;
+	global $DatabaseConn;
 	
 	$w = array(50, 100);	// Cell widths
 	
 	// Query dictionary and create and entry for each item
 	if($Generation < 2) {
       $query = "select" 
-          . " list.*"
+          . " *"
           . " from list"
           . " where list.Version='" . $Version  . "'"
           . " order by list.Name"
           ;
 	} else {
       $query = "select" 
-             . " list.*"
+             . " *"
              . " from list"
              . " where list.Version='" . $Version  . "'"
              . " order by list.Name"
              ;
 	}
 	
-	$result = mysql_query($query);
+	$result = $DatabaseConn->query($query);
 	if(!$result) {
 	   $this->Write($Document['LineSpace'], "Error in query: " . $query);
 	   $this->Output();
@@ -826,43 +804,42 @@ function MakeList()
 	$this->LoadFile('list.txt', 0);
 	
 	$this->SetFont('', '', $Document['FontSizeDef']);
-	while(($row = mysql_fetch_object($result)) != null) {
+	while($row = $result->fetchArray()) {
 			$this->Ln();
 		   $x = $Document['LeftMargin'];
 		   $this->SetLeftMargin($x);
       	$this->SetX($x);
-	   	$this->EntryHeader($row->Name . ' List', $row->Type, 1);
-	   	$this->EntryText($row->Description);
-	   	$lastList = $row->Name;
+	   	$this->EntryHeader($row['Name'] . ' List', $row['Type'], 1);
+	   	$this->EntryText($row['Description']);
+	   	$lastList = $row['Name'];
 		   $this->Ln();
 		   $this->Ln();
-			if(strcmp($row->Type, "Open") == 0) {
+			if(strcmp($row['Type'], "Open") == 0) {
 				$this->Indent(1);
-				$this->EntryText("For a current list see $row->Reference");
+				$this->EntryText("For a current list see " . $row['Reference']);
 				$this->Ln();
 			} else {	// Closed list
-				$this->MakeMember($row->Name);
+				$this->MakeMember($row['Name']);
 			}
 	}
 	$x = $Document['LeftMargin'];	
 	$this->SetLeftMargin($x);
 	$this->SetX($x);
 	
-	// Clean-up
-	mysql_free_result($result);
 }
 
 	
 function MakeHistory()
 {
 	global $Document;
+	global $DatabaseConn;
 	
 	// Query dictionary and create and entry for each item
 	$query = "select" 
-	       . " history.*"
+	       . " *"
 	       . " from history"
 	       ;
-	$result = mysql_query($query);
+	$result = $DatabaseConn->query($query);
 	if(!$result) {
 	   $this->Write($Document['LineSpace'], "Error in query: " . $query);
 	   $this->Output();
@@ -877,38 +854,30 @@ function MakeHistory()
 	
 	$this->SetFont('', '', $Document['FontSizeDef']);
 	$w = array(30, 30, 100);
-	while(($row = mysql_fetch_object($result)) != null) {
-	   if(strcmp($lastVersion, $row->Version) != 0) {
+	while($row = $result->fetchArray()) {
+	   if(strcmp($lastVersion, $row['Version']) != 0) {
 		   $x = $Document['LeftMargin'];
 		   $this->Ln();
 		   $this->SetLeftMargin($x);
       	$this->SetX($x);
-	   	$this->EntryHeader($row->Version, '', 0);
-		   $lastVersion = $row->Version;
+	   	$this->EntryHeader($row['Version'], '', 0);
+		   $lastVersion = $row['Version'];
 	   }
 	   // Table entry
 	   $x = $Document['LeftMargin'];
 	   $this->SetLeftMargin($x);
 	   $this->SetX($x);
-	   $buffer = $row->Updated;
-	   // if(strlen($buffer) == 0) $buffer = "Draft";
+	   $buffer = $row['Updated'];
 	   $this->Write($Document['LineSpaceDef'], $buffer);
 	   $x = $Document['LeftMargin'] + $w[0];
-	   // $this->SetLeftMargin($x);
-      // $this->SetX($x);
-	   // $this->Write($Document['LineSpaceDef'], $row->ChangedBy);
-	   // $x = $Document['LeftMargin'] + $w[0] + $w[1];
 	   $this->SetLeftMargin($x);
       $this->SetX($x);
-	   // $this->Write($Document['LineSpaceDef'], $row->Description);
-	   $this->MultiCell($w[2], $Document['LineSpaceDef'], $row->Description, 0, 'L');
+	   $this->MultiCell($w[2], $Document['LineSpaceDef'], $row['Description'], 0, 'L');
 	}
 	$x = $Document['LeftMargin'];	
 	$this->SetLeftMargin($x);
 	$this->SetX($x);
 	
-	// Clean-up
-	mysql_free_result($result);
 }
 
 function MakeTree()
@@ -933,96 +902,100 @@ function ShowTree1($term, $indent, $dictionary)
 {
 	global $Version;
 	global $Generation;
+	global $DatabaseConn;
 	
 	$w = array(20, 25, 45, 30, 30, 30, 30);	// Cell width
 	
 	if($dictionary) {	// Dictionary term
 	   $query = "select" 
-	          . " dictionary.*"
+	          . " *"
 	          . " from dictionary"
 	          . " where dictionary.Term = '" . $this->sqlencode($term)  . "'"
 	          . " and dictionary.Version = '" . $Version . "'"
 	          ;
 	} else {	// Members of a list
 	   $query = "select" 
-	          . " member.*"
+	          . " *"
 	          . " from member"
 	          . " where member.List = '" . $this->sqlencode($term)  . "'"
 	          . " and member.Version = '" . $Version . "'"
 	          ;
 	}
 
-   $result = mysql_query($query);
+   $result = $DatabaseConn->query($query);
    if(!$result) {
       print "Error in query: " . $query;
       done();
    }
    
-   while(($row = mysql_fetch_object($result)) != null) {
+   while($row = $result->fetchArray()) {
    	$endRow = 1;
 		for($i = 0; $i < $indent; $i++) $this->Cell($w[$i], 5, "");
 		if($dictionary) {
-		   $this->Cell($w[$indent], 5, $row->Term);
-			if(strlen($row->Elements) > 0) {
+		   $this->Cell($w[$indent], 5, $row['Term']);
+			if(strlen($row['Elements']) > 0) {
 				$this->SetTextColor(0, 0, 255);	// Blue
 			   $this->Cell($w[$indent], 5, "has elements");
 			   $this->SetTextColor(0);	// Black
 			   $endRow = 0;
-			   $list = explode(",", $row->Elements);
+			   $list = explode(",", $row['Elements']);
 			   $n = count($list);
 			   for($i = 0; $i < $n; $i++) {
 			   	$this->Ln();
 			   	$this->ShowTree1(trim($list[$i]), $indent + 1, $dictionary);
 			   }
 			}
-			if(strlen($row->List) > 0) {
+			if(strlen($row['List']) > 0) {
 				$this->SetTextColor(255, 0, 0);	// Red
 			   $this->Cell($w[$indent], 5, "is");
 			   $this->SetTextColor(0);	// Black
 			   $endRow = 0;
-		   	$this->ShowTree1($row->List, $indent + 1, 0);
+		   	$this->ShowTree1($row['List'], $indent + 1, 0);
 			}
 			break;	// Only do first term
 		} else {	// Member list
-			$this->Cell($w[$indent], 5, $row->Term);
+			$this->Cell($w[$indent], 5, $row['Term']);
 		}		
 		$this->Ln();
    }
 	
-	// Clean-up
-   mysql_free_result($result);
 }
 
 function ShowTree2($term, $indent, $occur, $group, $pointer)
 {
 	global $ScriptName;
 	global $Version;
+	global $DatabaseConn;
 	
 	$rowList = array();
 	if($pointer == 0) {	// Query for list
 	   $query = "select" 
-	          . " ontology.*"
+	          . " *"
 	          . " from ontology"
 	          . " where ontology.Object = '" . $this->sqlencode($term)  . "'"
 	          . " and ontology.Version='" . $Version  . "'"
 	          . " Order By ontology.Pointer"
 	          ;
 	
-	   $result = mysql_query($query);
+	   $result = $DatabaseConn->query($query);
 	   if(!$result) {
 	      print "Error in query: " . $query;
 	      done();
 	   }
 	   
+	   // Store results 
 	   $count = 0;
 	   $showName = 1;
-	   while(($row = mysql_fetch_object($result)) != null) {
-	   	$rowList[] = $row;
+	   $i = 0;
+	   while($row = $result->fetchArray()) {
+        $rowList[$i]['Object'] = $row['Object'];
+        $rowList[$i]['Element'] = $row['Element'];
+        $rowList[$i]['Occurence'] = $row['Occurence'];
+        $rowList[$i]['Group'] = $row['Group'];
+
+        $i++; 
 	   }
-		// Clean-up
-	   mysql_free_result($result);
 	}
-	// if($pointer == -1) { $showName = 0; $pointer = 0; }
  
    $nRow = count($rowList);
    if($nRow == 0) {
@@ -1037,13 +1010,13 @@ function ShowTree2($term, $indent, $occur, $group, $pointer)
 		
 		// Print object name
 		if($showName) {
-			$this->PrintTerm($row->Object, $indent, $occur, $group, 0, 1);
+			$this->PrintTerm($row['Object'], $indent, $occur, $group, 0, 1);
 			$this->Ln();
 			$showName = 0;
 		}
 
 		// Show elements
-		$this->ShowTree2($row->Element, $indent+1, $row->Occurence, $row->Group, 0);
+		$this->ShowTree2($row['Element'], $indent+1, $row['Occurence'], $row['Group'], 0);
    }
 	
    return $count;
@@ -1113,7 +1086,9 @@ function TitlePage()
 
 function sqlencode($term)
 {
-	return mysql_escape_string($term);
+	global $DatabaseConn;
+	
+	return $DatabaseConn->escapeString($term);
 }
 
 function ArabicToRoman( $myArabicNum, $htmlelement = false, $htmlelement2 = '</u>', $dontOptimise = false ) {
@@ -1255,23 +1230,16 @@ function ResetCounters()
 
 function OpenDatabase()
 {
+	// Database access variables
+	global $Database;
+	global $Homepath;
 	global $DatabaseConn;
 	
-	// Database access variables
-	global $Host;
-	global $Database;
-	global $Username;
-	global $Password;
-	
-	// Connect to database server
-	$DatabaseConn = mysql_pconnect($Host, $Username, $Password);
-	if(!$DatabaseConn) {
-	   print "Unable to connect to database server.";
-	   exit();
-	}
-	
-	if(!mysql_select_db($Database)) {
-	   print "Unable to connect to database: " . $Database;
+	try {
+		$DatabaseConn = new SQLite3($Homepath . $Database);
+	} catch(Exception $e) {
+	   print "Unable to connect to database: " . $Homepath . $Database . "\n";
+	   print "Reason: " . $e->getMessage() . "\n";
 	   exit();
 	}
 }
@@ -1280,16 +1248,20 @@ function CloseDatabase()
 {
 	global $DatabaseConn;
 	
+	$DatabaseConn->close();
+	
 }
 
 function GetVersion()
 {
 	global $Version;
+	global $Homepath;
 	global $ReleaseDate;
 	global $Doclet;
 	global $Generation;
+	global $DatabaseConn;
 
-        $ReleaseDate = "";
+  $ReleaseDate = "";
 	
 	// Query database for information on choosen version
 	if(isset($Version)) {
@@ -1300,14 +1272,14 @@ function GetVersion()
 	   		. " history.ID = (Select max(history.ID) from history where Version = '$Version')"
 		      ;
 	
-		$result = mysql_query($query);
+		$result = $DatabaseConn->query($query);
 	   if(!$result) {
 	      print "Error in query: " . $query;
 	      done();
 	   }
 	   
-	   while(($row = mysql_fetch_object($result)) != null) {
-	      if($row->Description == "Released.") $ReleaseDate = $row->Updated;
+	   while($row = $result->fetchArray()) {
+	      if($row['Description'] == "Released.") $ReleaseDate = $row['Updated'];
 	   }
 	}
 	
@@ -1320,15 +1292,15 @@ function GetVersion()
 	   		. " history.ID = (Select max(history.ID) from history)"
 		      ;
 	
-		$result = mysql_query($query);
+		$result = $DatabaseConn->query($query);
 	   if(!$result) {
 	      print "Error in query: " . $query;
 	      done();
 	   }
 	   
-	   while(($row = mysql_fetch_object($result)) != null) {
-	      $Version = $row->Version;
-	      if($row->Description == "Released") $ReleaseDate = $row->Updated;
+	   while($row = $result->fetchArray()) {
+	      $Version = $row['Version'];
+	      if($row['Description'] == "Released") $ReleaseDate = $row['Updated'];
 	   }
 	}
 	
@@ -1341,7 +1313,7 @@ function GetVersion()
 	if(strcmp($Version, "0.99.3") == 0) $Generation = 1;
 	
 	// Set source for doclet information
-	$Doclet = "/var/www/spase/root/data/doclet/Version_" . str_replace(".", "_", $Version) . "/";
+	$Doclet = "$Homepath/data/doclet/Version_" . str_replace(".", "_", $Version) . "/";
 }
 
 // Main 
@@ -1350,6 +1322,7 @@ function GetVersion()
 if(isset($_REQUEST['version'])) { $Version = $_REQUEST['version']; }
 
 if($argc > 1) $Version = $argv[1];
+if($argc > 2) $Homepath = $argv[2];
 
 $Generation = 2;	// Newest
 
