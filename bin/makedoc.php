@@ -3,7 +3,7 @@
 // Designed for the SPASE website envronment.
 // Written by: Todd King (June 2005)
 // Copyright 2005 Regents University of California. All Rights Reserved
-$Homepath = "/var/www/spase/ROOT";
+$Homepath = "/var/www/spase/webapp/root";
 
 define('FPDF_FONTPATH',"fpdf/font/");
 require('fpdf.php');

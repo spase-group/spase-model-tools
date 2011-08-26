@@ -1,10 +1,10 @@
 # Build all the type of documents related to a version of the SPASE model.
-# Designed for the SPASE website envronment.
+# Designed for the SPASE website environment.
 #
 # Author: Todd King
 #
 version=${1:-2.2.1}
-homepath=${2:-/c/projects/spase/webapp/ROOT}
+homepath=${2:-/c/projects/spase/webapp/root}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
@@ -35,9 +35,12 @@ echo "*** TO DO ***"
 ./makeparser.sh $version $homepath
 ./makejaxb.sh $version $homepath
 
+# Create DOS style homepath
+dospath=`echo $homepath | sed -e 's.^/..' -e 's./.:\\\\.' -e 's./.\\\\.g'`
+
 # Make schema documentation (using Oxygen)
-echo Run the command: makeschema.bat $vername $homepath
+echo Run the command: makeschema.bat $vername $dospath
 
 # Copy documents to SPASE School
-echo Then run the command: ./makeschool.sh $version $homepath
+echo Then run the command: bash ./makeschool.sh $version $homepath
 echo To copy generated documents to the SPASE school.
