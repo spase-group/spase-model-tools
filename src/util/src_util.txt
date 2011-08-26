@@ -1,7 +1,0 @@
-C:\Projects\spase\java\model-tools\src\util\CodePack.java
-C:\Projects\spase\java\model-tools\src\util\MakeParser.java
-C:\Projects\spase\java\model-tools\src\util\MakeXMI.java
-C:\Projects\spase\java\model-tools\src\util\MakeXML.java
-C:\Projects\spase\java\model-tools\src\util\MakeXSD.java
-C:\Projects\spase\java\model-tools\src\util\MakeXSL.java
-C:\Projects\spase\java\model-tools\src\util\XML.java
