@@ -28,6 +28,19 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * Build an XML Schema document based on the SPASE data model specification
+ * in the data model database.
+ *<p>
+ * Usage:<blockquote>
+ *     MakeXSD version
+ * </blockquote>
+ *
+ * @author Todd King
+ * @author UCLA/IGPP
+ * @version     1.0, 11/23/06
+ * @since		1.0
+ */
 public class MakeXSD extends Query
 {
 	private String	mVersion = "1.0.1";
@@ -49,19 +62,6 @@ public class MakeXSD extends Query
 	ArrayList<String>	mElemList = new ArrayList<String>();
 	ArrayList<String>	mElemLeaf = new ArrayList<String>();
 
-    /**
-	 * Build an XML Schema document based on the SPASE data model specification
-	 * in the data model database.
-	 *<p>
-	 * Usage:<blockquote>
-	 *     MakeXSD version
-	 * </blockquote>
-	 *
-	 * @author Todd King
-	 * @author UCLA/IGPP
-	 * @version     1.0, 11/23/06
-	 * @since		1.0
-	 */
 	public static void main(String args[])
    {
 		MakeXSD me = new MakeXSD();
@@ -354,6 +354,7 @@ public class MakeXSD extends Query
 	   		type = "Enumeration";
 	   		list = "Version";
 	   	}
+	   	/*
 			if(igpp.util.Text.isMatch(term, "Extension")) {	// Special case
 				printLine(1, "<xsd:element name=\"Extension\" substitutionGroup=\"ResourceEntity\">");
 	  		   printAnnotation(2, desc);
@@ -364,6 +365,7 @@ public class MakeXSD extends Query
 				printLine(2, "</xsd:complexType>");
 				printLine(1, "</xsd:element>");
 			} else {
+		*/
 		   	if(igpp.util.Text.isMatch(type, "Item")) {
 		  		   printLine(1, "<xsd:element name=\"" + getXSLName(term) + "\" type=\"xsd:boolean\" default=\"true\"" + subGroup + ">");
 		  		   printAnnotation(2, desc);
@@ -375,7 +377,7 @@ public class MakeXSD extends Query
 			   	printAnnotation(2, desc);
 			   }
 				printLine(1, "</xsd:element>");
-			}
+		// }
 	  }
 	}
 
@@ -405,7 +407,7 @@ public class MakeXSD extends Query
 	          ;
 
 		// Determine the number of rows
-		// We do htis the hard way since sqlite is a "FORWARD Only" database
+		// We do this the hard way since sqlite is a "FORWARD Only" database
 
 	   statement = this.beginQuery();
 	   resultSet = this.select(statement, query);
@@ -422,7 +424,19 @@ public class MakeXSD extends Query
 	   itIs = "";
 
 	   if(rows == 0) {	// A leaf
-	   	isElemLeaf(term);
+		   if(term.compareTo("Extension") == 0) {	// "Extension" is an exception
+			   	printLine(0, "");
+				printLine(1, "<xsd:element name=\"" + getXSLName(term) + "\" type=\"" + getXSLName(term) + "\" />");
+			   	printLine(1, "<xsd:complexType name=\"" + getXSLName(term) +"\">");
+			   	printAnnotation(2, getElementDesc(term));
+			   	printLine(2, "<xsd:sequence>");
+			   	printLine(3, "<xsd:any minOccurs=\"0\" />");
+			   	printLine(2, "</xsd:sequence>");
+			   	if(addLang) printLine(3, "<xsd:attribute name=\"lang\" type=\"xsd:string\" default=\"en\"/>");
+			   	printLine(1, "</xsd:complexType>");
+		   } else {
+			   isElemLeaf(term);
+		   }
 	   } else { // Not a leaf
 	   	desc = getElementDesc(term);
 	   	// group = resultSet.getString("Group");

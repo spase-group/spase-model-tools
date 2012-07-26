@@ -13,7 +13,6 @@
 package org.spase.model.servlet;
  
 // import igpp.*
-import igpp.servlet.MultiPrinter;
 import igpp.servlet.SmartHttpServlet;
 import igpp.database.Query;
 import igpp.util.Encode;
@@ -23,18 +22,11 @@ import java.sql.Statement;
 import java.sql.ResultSet;
 
 //import java.io.*;
-import java.io.PrintStream;
-import java.io.Writer;
-import java.io.PrintWriter;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 
 // import java.util.*
-import java.util.Date;
 import java.util.ArrayList;
 
-// import java.text.*
-import java.text.SimpleDateFormat;
 
 //import java.servlet.jsp.*;
 import javax.servlet.jsp.JspWriter;
@@ -43,11 +35,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-// import java.net.*
-import java.net.URLEncoder;    
-
 public class Search extends SmartHttpServlet
 {
+	static final long serialVersionUID = 1L;
 	static final String mVersion = "1.0.1";
 	
 // Local variables
@@ -77,12 +67,10 @@ public class Search extends SmartHttpServlet
 	Query access = new Query();
 	Query access2 = new Query();
 	
-	ArrayList mGroupList = new ArrayList();
+	ArrayList<String> mGroupList = new ArrayList<String>();
 	
 	public static void main(String[] args) 
 	{
-		String	message;
-		
 		if(args.length < 0) {
 			System.out.println("Version: " + mVersion);
 			System.out.println("Usage: igpp.bean.Search");
@@ -561,8 +549,6 @@ public class Search extends SmartHttpServlet
 		ResultSet	resultSet;
 		boolean		showName;
 		
-		TermDef	termDef = new TermDef();
-		
 		String pattern = Encode.sqlEncode(this.term);
 		if(pattern.length() == 0) pattern = "%";	// Everything
 		
@@ -893,7 +879,6 @@ public class Search extends SmartHttpServlet
 		String	typeURL;
 		String	description;
 		String	attrib;
-		String	term;
 		String	url;
 		String	label;
 		String	item;
@@ -1159,7 +1144,6 @@ public class Search extends SmartHttpServlet
 	{
 		String	typeURL;
 		String[]	list;
-		String		attrib;
 		String		buffer;
 		String		description;
 		String		label;
@@ -1959,7 +1943,6 @@ public class Search extends SmartHttpServlet
 		throws Exception
 	{
 		String itIs;
-		String	buffer;
 		String	query;
 		Statement	statement;
 		ResultSet	resultSet;
@@ -2068,12 +2051,10 @@ public class Search extends SmartHttpServlet
 		throws Exception
 	{
 		boolean showHas = true;
-		int		count = 0;
 		String list = isEnumeration(out, term);
 		
   		if(list.length() == 0) return showHas;	// no values
    
-  		count = 0;
   		showHas = true;
 		if(showHas) {
 			out.println("<td><font color=\"#0000FF\">possible&nbsp;values</font></td>");
@@ -2098,7 +2079,6 @@ public class Search extends SmartHttpServlet
 		String	buffer;
 		String	newPrefix;
 		String	type;
-		int	count = 0;
 		
 		listName = isEnumeration(out, term);
 		if(listName.length() == 0) return;	// no values

@@ -28,6 +28,19 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * Build an XML Schema document based on the SPASE data model specification
+ * in the data model database.
+ *<p>
+ * Usage:<blockquote>
+ *     MakeXSD version
+ * </blockquote>
+ *
+ * @author Todd King
+ * @author UCLA/IGPP
+ * @version     1.0, 11/23/06
+ * @since		1.0
+ */
 public class MakeXMI extends Query
 {
 	private String	mVersion = "1.0.1";
@@ -52,19 +65,6 @@ public class MakeXMI extends Query
 
 	private int mAssociationCount = 0;
 
-	/**
-	 * Build an XML Schema document based on the SPASE data model specification
-	 * in the data model database.
-	 *<p>
-	 * Usage:<blockquote>
-	 *     MakeXSD version
-	 * </blockquote>
-	 *
-	 * @author Todd King
-	 * @author UCLA/IGPP
-	 * @version     1.0, 11/23/06
-	 * @since		1.0
-	 */
 	public static void main(String args[])
    {
 		MakeXMI me = new MakeXMI();

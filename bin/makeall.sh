@@ -3,10 +3,13 @@
 #
 # Author: Todd King
 #
-version=${1:-2.2.1}
+version=${1:-2.2.3}
 homepath=${2:-/c/projects/spase/webapp/root}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
+
+# Make database
+./makedb.sh $version $homepath
 
 # Make the document
 echo $homefolder
@@ -44,3 +47,7 @@ echo Run the command: makeschema.bat $vername $dospath
 # Copy documents to SPASE School
 echo Then run the command: bash ./makeschool.sh $version $homepath
 echo To copy generated documents to the SPASE school.
+
+# Change to draft version
+echo If this is a draft version.
+echo Run the command: bash ./makedraft.sh $vername

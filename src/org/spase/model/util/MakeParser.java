@@ -37,6 +37,19 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+/**
+ * Build an XML Schema document based on the SPASE data model specification
+ * in the data model database.
+ *<p>
+ * Usage:<blockquote>
+ *     MakeXSD version
+ * </blockquote>
+ *
+ * @author Todd King
+ * @author UCLA/IGPP
+ * @version     1.0, 11/23/06
+ * @since		1.0
+ */
 public class MakeParser extends Query
 {
 	private String	mVersion = "1.0.0";
@@ -70,19 +83,6 @@ public class MakeParser extends Query
 	private final int TypeText				= 6;
 	private final int TypeTime				= 7;
 
-    /**
-	 * Build an XML Schema document based on the SPASE data model specification
-	 * in the data model database.
-	 *<p>
-	 * Usage:<blockquote>
-	 *     MakeXSD version
-	 * </blockquote>
-	 *
-	 * @author Todd King
-	 * @author UCLA/IGPP
-	 * @version     1.0, 11/23/06
-	 * @since		1.0
-	 */
 	public static void main(String args[])
    {
 		MakeParser me = new MakeParser();

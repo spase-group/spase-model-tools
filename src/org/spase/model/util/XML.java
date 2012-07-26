@@ -115,7 +115,7 @@ public class XML {
 	 * The file to parse must be previously opened and a InputStream
 	 * pointing to the file is passed.
 	 *
-     * @param reader		a connection to a pre-opened file.
+     * @param stream		a connection to a pre-opened file.
      *
      * @return          <code>true</code> if the file could be read;
      *                  <code>false</code> otherwise.

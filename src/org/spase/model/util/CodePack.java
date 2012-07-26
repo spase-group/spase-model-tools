@@ -16,23 +16,23 @@ import java.io.BufferedReader;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 
+/** 
+* Build Java code which can be used to write the contents of the file from
+* a Java class.
+*<p>
+* Usage:<blockquote>
+*     CodePack source output
+* </blockquote>
+*
+* @author Todd King
+* @author UCLA/IGPP
+* @version 1.00 2007 02 01
+* @since		1.0
+*/
 public class CodePack
 {
 	private String	mVersion = "1.0.0";
 	
-	/** 
-	* Build Java code which can be used to write the contents of the file from
-	* a Java class.
-	*<p>
-	* Usage:<blockquote>
-	*     CodePack source output
-	* </blockquote>
-	*
-	* @author Todd King
-	* @author UCLA/IGPP
-	* @version 1.00 2007 02 01
-	* @since		1.0
-	*/
 	public static void main(String args[])
 	{
 		PrintStream	out = System.out;
