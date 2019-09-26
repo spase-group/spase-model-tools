@@ -1,9 +1,9 @@
 #!/user/bin/php
 <?php
-// Designed for the SPASE website envronment.
+// Designed for the SPASE website environment.
 // Written by: Todd King (June 2005)
 // Copyright 2005 Regents University of California. All Rights Reserved
-$Homepath = "/var/www/spase/webapp/root";
+$Homepath = "/var/www/spase/webapp/website/site/ROOT";
 
 define('FPDF_FONTPATH',"fpdf/font/");
 require('fpdf.php');
@@ -13,7 +13,8 @@ require('fpdf.php');
 date_default_timezone_set('America/Los_Angeles');
 
 // Database access variables
-$Database = "/data/spase-model.db";
+$Context = "spase-model";
+$Database = "/data/" . $Context . ".db";
 
 $TOC = array();
 $IndexTemp = array();
@@ -532,7 +533,7 @@ function MakeDictionary()
 		   $result2 = $DatabaseConn->query($query2);
 		   if(!$result2) {
 		          print "Error in query: " . $query2;
-		          done();
+		          exit();
 		   }
 				        
 			$needHeader = 1;
@@ -576,7 +577,7 @@ function MakeDictionary()
 		      $result2 = $DatabaseConn->query($query2);
 		      if(!$result2) {
 		              print "Error in query: " . $query2;
-		              done();
+		              exit();
 		      }
 		
 				$needHeader = 1;
@@ -663,7 +664,7 @@ function GetEnumeration($term)
    $result = $DatabaseConn->query($query);
    if(!$result) {
       print "Error in query: " . $query;
-      done();
+      exit();
    }
    
    $itIs = "";
@@ -692,7 +693,7 @@ function MakeEnum($prefix, $list)
 	$result = $DatabaseConn->query($query);
 	if(!$result) {
 	   print "Error in query: " . $query;
-	   done();
+	   exit();
 	}
 	   
 	while($row = $result->fetchArray()) {
@@ -925,7 +926,7 @@ function ShowTree1($term, $indent, $dictionary)
    $result = $DatabaseConn->query($query);
    if(!$result) {
       print "Error in query: " . $query;
-      done();
+      exit();
    }
    
    while($row = $result->fetchArray()) {
@@ -980,7 +981,7 @@ function ShowTree2($term, $indent, $occur, $group, $pointer)
 	   $result = $DatabaseConn->query($query);
 	   if(!$result) {
 	      print "Error in query: " . $query;
-	      done();
+	      exit();
 	   }
 	   
 	   // Store results 
@@ -1190,6 +1191,7 @@ function MakeDocument()
 {
 	global $Version;
 	global $IndexTemp;
+	global $Context;
 	
 	$IndexTemp = array();
 
@@ -1203,7 +1205,9 @@ function MakeDocument()
 	if(strcmp($Version, "2.0.0") < 0) $this->MakeDataType();
 	$this->MakeDictionary();
 	$this->MakeList();
-	$this->LoadFile('appendix-a.txt', 1);
+	if(strcmp($Context, "spase-model") == 0) {
+		$this->LoadFile('appendix-a.txt', 1);
+	}
 	$this->LoadFile('biblio.txt', 1);
 	$this->PrintIndex();
 	$this->MakeHistory();
@@ -1256,6 +1260,7 @@ function GetVersion()
 {
 	global $Version;
 	global $Homepath;
+	global $Context;
 	global $ReleaseDate;
 	global $Doclet;
 	global $Generation;
@@ -1275,7 +1280,7 @@ function GetVersion()
 		$result = $DatabaseConn->query($query);
 	   if(!$result) {
 	      print "Error in query: " . $query;
-	      done();
+	      exit();
 	   }
 	   
 	   while($row = $result->fetchArray()) {
@@ -1295,7 +1300,7 @@ function GetVersion()
 		$result = $DatabaseConn->query($query);
 	   if(!$result) {
 	      print "Error in query: " . $query;
-	      done();
+	      exit();
 	   }
 	   
 	   while($row = $result->fetchArray()) {
@@ -1312,8 +1317,12 @@ function GetVersion()
 	if(strcmp($Version, "0.99.2") == 0) $Generation = 1;
 	if(strcmp($Version, "0.99.3") == 0) $Generation = 1;
 	
+	$folder = "";
+	if(strcmp($Context, "spase-model") != 0) {
+		$folder = $Context . "/";
+	}
 	// Set source for doclet information
-	$Doclet = "$Homepath/data/doclet/Version_" . str_replace(".", "_", $Version) . "/";
+	$Doclet = "$Homepath/data/doclet/" . $folder . "Version_" . str_replace(".", "_", $Version) . "/";
 }
 
 // Main 
@@ -1322,7 +1331,11 @@ function GetVersion()
 if(isset($_REQUEST['version'])) { $Version = $_REQUEST['version']; }
 
 if($argc > 1) $Version = $argv[1];
-if($argc > 2) $Homepath = $argv[2];
+if($argc > 2) {
+	$Context = $argv[2];
+	$Database = "/data/" . $argv[2] . ".db";
+}
+if($argc > 3) $Homepath = $argv[3];
 
 $Generation = 2;	// Newest
 

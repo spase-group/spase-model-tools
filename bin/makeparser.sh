@@ -4,34 +4,45 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-homepath=${2:-/c/projects/spase/webapp/root}
+dbname=${2:-spase-model}
+homepath=${3:-/c/projects/spase/webapp/website/site/ROOT}
+
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
+# "spase-model" becomes "". All others become suffix
+temp=(${dbname//-/ })
+group="-"${temp[1]}
+if [ $group = "-model" ]; then
+   group=""
+fi
+
 # Make directory for build
-mkdir $homepath/tools/parser/build
+mkdir $homepath/tools/parser$group/build
 
 # Make the parser files
-mkdir $homepath/tools/parser/build/parser$verpack
-./runjava.sh org.spase.model.util.MakeParser $version $homepath/data $homepath/tools/parser/build/parser$verpack
+mkdir $homepath/tools/parser$group/build/parser$group"-"$verpack
+./runjava.sh org.spase.model.util.MakeParser -d $dbname".db" -m $version -p $homepath/data -o $homepath/tools/parser$group/build/parser$group"-"$verpack
 
 # Now compile
-pushd $homepath/tools/parser/build/parser$verpack
-javac -d .. *.java
+pushd $homepath/tools/parser$group/build/parser$group"-"$verpack
+javac -extdirs ../../../../WEB-INF/lib -d .. *.java
 
 # Build documentation
-javadoc -d ../api/parser$verpack *.java
+echo "Building documentation"
+javadoc -extdirs ../../../../WEB-INF/lib -d ../api/parser$group"-"$verpack *.java
 
 # Build JAR file
+echo "Building jar file"
 cd ..
-jar cf parser$verpack.jar parser$verpack spase/parser$verpack api/parser$verpack
+jar cf parser$group"-"$verpack.jar parser$group"-"$verpack spase api/parser$group"-"$verpack
 
 # Distribute
-mv -f parser$verpack.jar $homepath/tools/parser
-rm -r -f $homepath/tools/parser/api$verpack
-mv -f api/parser$verpack $homepath/tools/parser/api$verpack
+mv -f parser$group"-"$verpack.jar $homepath/tools/parser$group
+rm -r -f $homepath/tools/parser$group/api-$verpack
+mv -f api/parser$group"-"$verpack $homepath/tools/parser$group/api-$verpack
 popd
 
 # Clean-up
-/bin/rm -R -f $homepath/tools/parser/build
+/bin/rm -R -f $homepath/tools/parser$group/build
 

@@ -4,19 +4,31 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-homepath=${2:-/c/projects/spase/webapp/root}
+dbname=${2:-spase-model}
+homepath=${3:-/c/projects/spase/webapp/website/site/ROOT}
+
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
-mv $homepath/data/dictionary/spase-$vername.pdf $homepath/data/dictionary/spase-$vername-draft.pdf
-mv $homepath/data/schema/spase-$vername.xsd $homepath/data/schema/spase-$vername-draft.xsd 
-mv $homepath/data/xmi/spase-$vername.xmi $homepath/data/xmi/spase-$vername-draft.xmi
-mv $homepath/data/model/spase-$vername.pdf  $homepath/data/model/spase-$vername-draft.pdf
+# "spase-model" becomes "". All others become suffix
+temp=(${dbname//-/ })
+group="-"${temp[1]}
+if [ $group = "-model" ]; then
+   group=""
+fi
 
-mv $homepath/docs/dictionary/spase-$vername.pdf $homepath/docs/dictionary/spase-$vername-draft.pdf
-mv $homepath/docs/schema/spase-$vername.xsd $homepath/docs/schema/spase-$vername-draft.xsd
-mv $homepath/docs/xmi/spase-$vername.xmi  $homepath/docs/xmi/spase-$vername-draft.xmi
-mv $homepath/docs/model/spase-$vername.pdf  $homepath/docs/model/spase-$vername-draft.pdf
+# mv $homepath/data/dictionary/spase$group-$vername.pdf $homepath/data/dictionary/spase$group-$vername-draft.pdf
+mv $homepath/data/schema/spase$group-$vername.xsd $homepath/data/schema/spase$group-$vername-draft.xsd 
+mv $homepath/data/model/schema/spase$group-$vername.pdf  $homepath/data/model/schema/spase$group-$vername-draft.pdf
+mv $homepath/data/model/spase$group-$vername.pdf  $homepath/data/model/spase$group-$vername-draft.pdf
+mv $homepath/data/model/spase$group-$vername  $homepath/data/model/spase$group-$vername-draft
 
-rm -r -f $homepath/data/reference/spase-$vername-draft
-mv $homepath/data/reference/spase-$vername  $homepath/data/reference/spase-$vername-draft
+# mv $homepath/data/xmi/spase$group-$vername.xmi $homepath/data/xmi/spase$group-$vername-draft.xmi
+
+mv $homepath/docs/dictionary/spase$group-$vername.pdf $homepath/docs/dictionary/spase$group-$vername-draft.pdf
+# mv $homepath/docs/schema/spase$group-$vername.xsd $homepath/docs/schema/spase$group-$vername-draft.xsd
+# mv $homepath/docs/model/spase$group-$vername.pdf  $homepath/docs/model/spase$group-$vername-draft.pdf
+# mv $homepath/docs/xmi/spase$group-$vername.xmi  $homepath/docs/xmi/spase$group-$vername-draft.xmi
+
+# rm -r -f $homepath/data/reference/spase$group-$vername-draft
+# mv $homepath/data/reference/spase$group-$vername  $homepath/data/reference/spase$group-$vername-draft

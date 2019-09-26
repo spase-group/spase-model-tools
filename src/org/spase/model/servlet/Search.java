@@ -4,7 +4,7 @@
  * When used as a bean a call to init() or init(String) will establish the
  * connection to the database containing the model specification.
  * For the init() method, a JNDI resource with the reference name "jdbc/spase" must
- * be defined in the web.xml file. For the init(String) method the the passed
+ * be defined in the web.xml file. For the init(String) method the passed
  * String is name of the properties file (see igpp.database.Query).
  *
  * @author Todd King
@@ -17,16 +17,22 @@ import igpp.servlet.SmartHttpServlet;
 import igpp.database.Query;
 import igpp.util.Encode;
 
+
 // import javax.sql.*;
 import java.sql.Statement;
 import java.sql.ResultSet;
 
 //import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 
 // import java.util.*
 import java.util.ArrayList;
 
+
+import java.util.HashMap;
 
 //import java.servlet.jsp.*;
 import javax.servlet.jsp.JspWriter;
@@ -37,12 +43,15 @@ import javax.servlet.http.HttpServletResponse;
 
 public class Search extends SmartHttpServlet
 {
-	static final long serialVersionUID = 1L;
-	static final String mVersion = "1.0.1";
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 2716930304317489091L;
+	static final String mVersion = "1.0.3";
 	
 // Local variables
 	String	host = "";
-	String	database = "spase-model.db";
+	String	database = "spase-model";
 	String	username = "";
 	String	password = "";
 	String	driverName = "SQLite";
@@ -61,13 +70,21 @@ public class Search extends SmartHttpServlet
 	String	scope = "dictionary";
 	int		generation = 2;
 	String	submit = "";
+	String	path = "";
+	String  contextName = "Base";
 	
-	String	scriptName = "search.jsp";
+	String realPath = "";
+	
+	String	scriptName = "search.html";
 		
+	// Query access = new Query();
+	
 	Query access = new Query();
-	Query access2 = new Query();
 	
 	ArrayList<String> mGroupList = new ArrayList<String>();
+	
+	HashMap<String, String> contextToNameMap = new HashMap<String, String>();
+	HashMap<String, String> typeToContextMap = new HashMap<String, String>();
 	
 	public static void main(String[] args) 
 	{
@@ -79,10 +96,28 @@ public class Search extends SmartHttpServlet
 		
 		Search search = new Search();
 		
-		search.mOut.setOut(System.out);
-		search.style = "xml";
-		search.doTask(search.mOut);
+		try {
+			search.version = "1.0.0";
+			search.init("test/data", "spase-sim"); // search.database);
+			search.mOut.setOut(System.out);
+			search.style = "xml";
+			search.doTask(search.mOut);
+		} catch(Exception e) {
+			e.printStackTrace();			
+		}
 	}
+	
+	public void initMap()
+	{
+		// Map database name to model name
+		contextToNameMap.put("spase-model", "Base");
+		contextToNameMap.put("spase-sim", "Simulation Extensions");
+		
+		// Map type prefix to the context (database) name
+		typeToContextMap.put("base", "spase-model");
+		typeToContextMap.put("sim", "spase-sim");
+	}
+	
 
 	public void reset()
 	{
@@ -99,66 +134,110 @@ public class Search extends SmartHttpServlet
 		this.submit = "";
 		this.since = "0.0.0";
 		this.recurseDepth = 1;	
+		this.path = "";
+		this.contextName = "Base";
 	}
 	
 	public void destroy()
 	{
 		try {
 			this.access.closeConnection();
-			this.access2.closeConnection();
 		} catch(Exception e) {
 		}
 	}
 	
+	/**
+	 * Servlet initialization.
+	 */
    public void init()
    	throws ServletException
    {
-   	try {
-			// Establish connections to database server
-			/*
-			this.access.setUserLogin(this.username, this.password);
-			this.access.setDatabase(this.host, this.database);
-			this.access.useUser();
-			*/
-			/*
-			this.access.useResource("jdbc/spase");
-			*/
-			this.access.setDatabaseDriver("SQLite");
-			this.access.setDatabase("", "spase-model.db");
-			this.access.connect();
+		try {
+			ServletContext context = getServletContext();
+			String realPath = context.getRealPath("/data");	// Should use context.getContextPath() but it's not available ???
+			if(realPath == null) realPath = "";
 			
-			// Second connection used by some methods.
-			/*
-			this.access2.setUserLogin(this.username, this.password);
-			this.access2.setDatabase(this.host, this.database);
-			this.access2.useUser();
-			*/
-			/*
-			this.access2.useResource("jdbc/spase");
-			*/
-			this.access2.setDatabaseDriver("SQLite");
-			this.access2.setDatabase("", "spase-model.db");
-			this.access2.connect();
-   	} catch(Exception e) {
-   		throw new ServletException(e);
-   	}
+			// setPath(path);
+			setRealPath(realPath);
+
+			System.out.println("From init() - Initalize with: spase-model.db; path: " + realPath);
+
+			init(realPath, database);
+		} catch(Exception e) {
+			throw new ServletException(e);
+		}
    }
+
+	
+	/**
+	 * Servlet initialization.
+	 */
+  public void init(String path, String database)
+  	throws ServletException
+  {
+		try {
+			initMap();
+			
+			// Close connections - if established
+			System.out.println("Closing connections...");
+			
+			// this.access.closeConnection();
+			
+			System.out.println("init: " + path + ":" + database + ".db");
+			
+			// Establish connections to database server
+			/* MYSQL
+			getAccess(this.database).setUserLogin(this.username, this.password);
+			getAccess(this.database).setDatabase(this.host, this.database);
+			getAccess(this.database).useUser();
+
+			getAccess(this.database).useResource("jdbc/spase");
+			*/
+			
+			// Try to close connection first
+			try {
+				this.access.closeConnection();
+			} catch(Exception e) {
+			}
+
+			this.database = database;
+			this.access.setDatabaseDriver("SQLite");
+			this.access.setDatabase(path, database + ".db");
+			this.access.connect();		
+
+		} catch(Exception e) {
+			throw new ServletException(e);
+		}
+  }
+
+   /**
+    * For programmatic initialization, for example, when used as a Bean
+    * 
+    * @param context	the servlet (application) context.
+    * @param request	the servlet request.
+    * @param database	name of the SQLite database containing the data dictionary.
+    * @throws ServletException	if failure to connect to database.
+    */
    public void init(ServletContext context, HttpServletRequest request, String database)
    	throws ServletException
    {
-   	try {
-   		String path = igpp.util.Text.getPath(context.getRealPath(request.getServletPath()));
-			this.access.setDatabaseDriver("SQLite");
-			this.access.setDatabase(path, database);
-			this.access.connect();
+		try {
+			String realPath = igpp.util.Text.getPath(context.getRealPath(request.getServletPath()));
 			
-			// Second connection used by some methods.
-			this.access2.setDatabaseDriver("SQLite");
-			this.access2.setDatabase(path, database);
-			this.access2.connect();
-   	} catch(Exception e) {
-   		throw new ServletException(e);
-   	}
+			// setPath(path);
+			setRealPath(realPath);
+						
+			System.out.println("Initalize with: " + database + "; path: " + realPath + "; context: " + contextName);
+			
+			init(realPath, database);
+/*			
+			getAccess(this.database).setDatabaseDriver("SQLite");
+			getAccess(this.database).setDatabase(path, database + ".db");
+			getAccess(this.database).connect();		
+*/
+		} catch(Exception e) {
+			throw new ServletException(e);
+		}
    }
 	
 	public void doPost(HttpServletRequest request, HttpServletResponse response)
@@ -189,7 +268,6 @@ public class Search extends SmartHttpServlet
 	public void doAction(HttpServletRequest request, HttpServletResponse response)
 		throws Exception
 	{
-		System.out.println("doAction()");
 		reset();	// Clear query parameters
 		
 		// Passed parameters
@@ -202,10 +280,23 @@ public class Search extends SmartHttpServlet
 		setSince(igpp.util.Text.getValue(request.getParameter("since"), this.since));
 		setStyle(igpp.util.Text.getValue(request.getParameter("style"), this.style));
 		setScope(igpp.util.Text.getValue(request.getParameter("scope"), this.scope));
+		setPath(igpp.util.Text.getValue(request.getParameter("path"), this.path));
+		setContext(igpp.util.Text.getValue(request.getParameter("context"), this.database));
 		
 		// get ready to write response
-		mOut.setOut(response.getWriter());
-		response.setContentType("text/xml");
+		try { mOut.setOut(response.getWriter()); } catch(Exception e) { /* do nothing */ }
+
+		setRealPath(igpp.util.Text.getPath(getServletContext().getRealPath(request.getServletPath())));
+
+		if(this.style.compareTo("tree") == 0) { response.setContentType("text/html"); }
+		else if(this.style.compareTo("mobile") == 0) { response.setContentType("text/html"); }
+		else if(this.style.compareTo("version") == 0) { response.setContentType("text/xml"); }
+		else if(this.style.compareTo("history") == 0) { response.setContentType("text/html"); }
+		else if(this.style.compareTo("browse") == 0) { response.setContentType("text/xml"); }
+		else if(this.style.compareTo("card") == 0) { response.setContentType("text/html"); }
+		else if(this.style.compareTo("xml") == 0) { response.setContentType("text/xml");  }
+		else if(this.style.compareTo("template") == 0) { response.setContentType("text/xml"); }
+		else { response.setContentType("text/html"); }
 			
 		doTask(mOut);
 	}
@@ -213,19 +304,24 @@ public class Search extends SmartHttpServlet
 	public void doTask(JspWriter out)
 	{
 		try {
+			contextName =  contextToNameMap.get(database);
+			if(contextName == null) contextName = database;
+
 			findVersion();
 			
-			if(this.style.compareTo("tree") == 0) showTree(out);	// Special case
-			else if(this.style.compareTo("version") == 0) showVersions(out);	// Special case
-			else if(this.style.compareTo("history") == 0) showHistory(out);	// Special case
-			else if(this.style.compareTo("browse") == 0) showBrowseTree(out, this.term);	// Special case
-			else if(this.style.compareTo("card") == 0) showDictionary(out);	// Special case
-			else if(this.style.compareTo("xml") == 0) showXML(out);	// Special case
-			else if(this.style.compareTo("template") == 0) showTemplate(out);	// Special case
-			else showSearch(out);	// Entry
+			// scriptName = "search.jsp";
+			
+			if(this.style.compareTo("tree") == 0) {  showTree(out); }	
+			else if(this.style.compareTo("mobile") == 0) { scriptName = "search"; showMobile(out, this.term); } // Special case
+			else if(this.style.compareTo("version") == 0) { showVersions(out); }	
+			else if(this.style.compareTo("history") == 0) { showHistory(out); }	
+			else if(this.style.compareTo("browse") == 0) {  showBrowseTree(out, this.term); } 	
+			else if(this.style.compareTo("card") == 0) { showDictionary(out); }	
+			else if(this.style.compareTo("xml") == 0) {   showXML(out); }	
+			else if(this.style.compareTo("template") == 0) {  showTemplate(out); }	
+			else {  showSearch(out); }	// Entry
 			
 			// this.access.disconnect();
-			// this.access2.disconnect();
 		} catch(Exception e) {
 			log(out, e.getMessage());
 		}
@@ -250,8 +346,8 @@ public class Search extends SmartHttpServlet
 		      + " order by ID DESC"
 		    	;
 	
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		while(resultSet.next()) {
 	    	String ver = resultSet.getString("Version");
 	    	if(ver.length() == 0) continue;	// Nothing to report
@@ -283,7 +379,7 @@ public class Search extends SmartHttpServlet
 
 		out.println("</table>");
 	   
-	   this.access.endQuery(statement, resultSet);
+	   getAccess(this.database).endQuery(statement, resultSet);
 	
 		out.println("</html>");	
 	}
@@ -306,8 +402,8 @@ public class Search extends SmartHttpServlet
 		      + " order by ID DESC"
 		    	;
 	
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		while(resultSet.next()) {
 	    	String ver = resultSet.getString("Version");
 	    	if(ver.length() == 0) continue;	// Nothing to report
@@ -326,23 +422,263 @@ public class Search extends SmartHttpServlet
 	    	}
 	   }
 	   
-	   this.access.endQuery(statement, resultSet);
+	   getAccess(this.database).endQuery(statement, resultSet);
 	
 		out.println("</Response>");	
 	}
 	
+	public void showMobile(JspWriter out, String term)
+			throws Exception
+	{
+		// For showMobile the path contains the xPath to the term
+		String from = "";
+		String fromLabel = "Home";
+		String leadPath = "/";
+		
+		// Parse path - if defined
+		if( ! igpp.util.Text.isEmpty(path)) {
+			from = igpp.util.Text.getFile(path);
+			leadPath = igpp.util.Text.getPath(path);
+			fromLabel = from;
+			if(fromLabel.isEmpty()) fromLabel = "Home";
+			if(leadPath == null) leadPath = "/";
+		}
+		
+		String query;
+		Statement	statement;
+		ResultSet	resultSet;
+
+		out.println("<!DOCTYPE html>");
+		out.println("<html>");
+		out.println("<head>");
+		out.println("   <meta charset=\"utf-8\" />");
+		out.println("   <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />");
+		out.println("   <title>SPASE Model</title>");
+		out.println("   <link rel=\"stylesheet\" href=\"/_assets/css/themes/default/jquery.mobile-1.2.0.css\" />");
+		out.println("   <link rel=\"stylesheet\" href=\"/_assets/css/layout.css\" />");
+		out.println("   <script src=\"/_assets/js/jquery-1.8.2.min.js\"></script>");
+		out.println("   <script src=\"/_assets/js/jquery.mobile-options.js\"></script>");
+		out.println("   <script src=\"/_assets/js/jquery.mobile-1.2.0.js\"></script>");
+		out.println("</head>");
+		out.println("<body>");
+		out.println("<div data-role=\"page\" >");
+
+		out.println("<div data-role=\"header\" data-theme=\"b\" >");
+		if(term.isEmpty()) {	// Show back button
+			   out.println("      <h1>SPASE Data Model Reference</h1>");
+		} else {	// Show bar with buttons
+		   out.println("      <a href=\"" + this.scriptName + "?context=" + database + "&style=mobile&version=" + getVersion() + "&term=" + from.replaceAll(" ", "+") + "&path=" + leadPath.replaceAll(" ", "+")  + "\" data-icon=\"back\" data-direction=\"reverse\">" + fromLabel + "</a>");
+		   out.println("      <h1>" + term + "</h1>");
+		   out.println("      <a href=\"" + this.scriptName + "?context=" + database + "&style=mobile&version=" + getVersion() + "&term=\" data-icon=\"home\" data-iconpos=\"notext\" data-direction=\"reverse\">Home</a>");
+		}
+		out.println("</div><!-- /header -->");
+		out.println("<div data-role=\"content\">");
+		
+		if(term.equals("")) {    // Root page
+			out.println("<div class=\"content-primary\">");
+
+			File info = new File(getRealPath() + "/info.htm");
+			
+			if(info.exists()) {
+				BufferedReader reader = new BufferedReader(new FileReader(info));
+				String buff;
+				while((buff = reader.readLine()) != null) {
+				out.println(buff);
+			}
+				reader.close();
+			}
+			out.println("</div> <!-- content-primary -->");
+			  
+			// Show versions
+			String href =  this.scriptName 
+					+ "?style=mobile"
+					+ "&context=" + database
+					+ "&term=Spase"
+					+ "&path=/" 
+					;
+
+		   String where = "";
+			if(database.equals("spase-model")) {	// Only certain versions
+				where = " where Version LIKE '%.%.0'"
+				   		+ " OR Version LIKE '1.2.%'"
+				   		+ " OR Version LIKE '1.3.%'"
+				   		+ " OR Version LIKE '2.%.%'"
+				   		;
+			}
+
+			query = "select"
+				   		+ " * "
+				   		+ " from history"
+				   		+ where
+					    + " order by ID DESC"
+				   		;
+				
+			out.println("<div class=\"content-secondary\">");
+			out.println("<ul data-role=\"listview\" data-inset=\"true\" data-theme=\"c\" data-dividertheme=\"b\">");
+			out.println("<li data-role=\"list-divider\">Version</li>");
+			
+			String curVer = "";
+			boolean showDraft = true;
+			boolean show = false;
+			
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
+			while(resultSet.next()) {
+		    	String ver = resultSet.getString("Version");
+		    	if(ver.length() == 0) continue;	// Nothing to report
+		    	if(ver.charAt(0) == '0') continue;	// Nothing prior to version 1.0.0
+		    	if(ver.compareTo(curVer) != 0) {	// Write entry
+		    	   String updated = " (" + resultSet.getString("Updated") + ")";
+		    	   String status = "";
+		    	   
+		    	   show = false;
+		    	   if(resultSet.getString("Description").compareToIgnoreCase("Released.") == 0) {
+			    	   status = "Release";
+			    	   show = true;
+		    	   } else {
+			    	   status = "Draft";
+			    	   if(showDraft) { show = true; }
+			    	   showDraft = false;	// Don't do it again - show first only
+		    	   }
+		    	   if(show) {
+		    	      out.println("<li><a href=\"" + href +  "&version=" + ver + "\">" + ver + updated + "<span class=\"ui-li-count\">" + status + "</span></a></li>");
+		    	   }
+		    	   curVer = ver;
+		    	}
+		   }
+			out.println("</ul> <!-- listview -->");
+			out.println("</div> <!-- content-secondary -->");
+		   
+		   getAccess(this.database).endQuery(statement, resultSet);
+	} else {	// Show Term
+
+			boolean	isNew = false;
+			
+			if(getScope().equals("type")) {
+				query = "select" 
+						+ " type.*"
+						+ " from type"
+						+ " where type.Name='" + Encode.sqlEncode(term) + "'"
+						+ " and type.Version='" + this.version + "'"
+						;
+					
+					statement = getAccess(this.database).beginQuery();
+					resultSet = getAccess(this.database).select(statement, query);
+					
+					while(resultSet.next()) {
+						out.println(
+								  "<!-- Definition -->"
+								+ "<div class=\"title\">" + resultSet.getString("Name") + "</div>"
+								+ "<div class=\"clear\"></div>"
+								+ "<p>"	+ resultSet.getString("Description") + "</p>"
+								+ "<p>" + "Since: " + resultSet.getString("Since") + "</p>"
+								);
+					}
+					getAccess(this.database).endQuery(statement, resultSet);		
+					
+			} else {	// Dictionary
+		
+				System.out.println("Searching for: " + term + "; version: " + this.version + "; since: " + this.since + "; database: " + this.database);
+				
+				query = "select" 
+					+ " dictionary.*"
+					+ " from dictionary"
+					+ " where dictionary.Term = '" + Encode.sqlEncode(term) + "'"
+					+ " and dictionary.Version='" + this.version + "'"
+					;
+		
+				isNew = false;
+				statement = getAccess(this.database).beginQuery();
+				resultSet = getAccess(this.database).select(statement, query);
+				while(resultSet.next()) {
+					isNew = igpp.util.Text.isMatch(resultSet.getString("Since"), this.version);
+				}
+				getAccess(this.database).endQuery(statement, resultSet);
+				
+				query = "select" 
+					+ " ontology.*"
+					+ " from ontology"
+					+ " where ontology.Object = '" + Encode.sqlEncode(term) + "'"
+					+ " and ontology.Version='" + this.version  + "'"
+					+ " Order By ontology.Pointer"
+				;
+				
+				statement = getAccess(this.database).beginQuery();
+				resultSet = getAccess(this.database).select(statement, query);
+			
+				out.println("<div class=\"content-primary\">");
+				
+				TermDef termDef = getDictionaryTerm(term);
+				
+				showTerm3(out, termDef, path);
+	
+				out.println("</div> <!-- content-primary -->");
+			  
+				out.println("<div class=\"content-secondary\">");
+				out.println("<ul data-role=\"listview\" data-inset=\"true\" data-theme=\"c\" data-dividertheme=\"b\">");
+				
+				boolean needHeader = true;
+				
+				while(resultSet.next()) {
+				   isNew = igpp.util.Text.isMatch(resultSet.getString("Since"), this.version);
+				   String typeVal = resultSet.getString("type");
+				   String context = database;
+				   String versionOpt = "&version=" + getVersion();
+				   String[] parts = typeVal.split(":");
+				   if(parts.length > 1) {
+					   isNew = false;
+					   versionOpt = "";	// Will default to latest
+					   if(parts[0].equals("base")) { context = "spase-model"; }
+					   else { context = parts[0]; }
+				   }
+				   String element = resultSet.getString("Element");
+				   String occur = resultSet.getString("Occurence");
+				   String href =  this.scriptName 
+						+ "?context=" + context
+						+ "&style=mobile"
+						+ versionOpt	// "&version=x.x.x if needed 
+						+ "&term=" + element.replaceAll(" ", "+")
+						+ "&path=" + path + "/" + term.replaceAll(" ", "+");
+				   String newText = "";
+				   if(isNew) newText = " (new)";
+					
+				   if(needHeader) { out.println("<li data-role=\"list-divider\">Element</li>"); needHeader = false; }
+				   
+				   out.println("<li><a href=\"" + href + "\">" + element + newText + "<span class=\"ui-li-count\">" + occur + "</span></a></li>");
+				}
+				out.println("</ul> <!-- listview -->");
+				out.println("</div> <!-- content-secondary -->");
+				
+				getAccess(this.database).endQuery(statement, resultSet);
+			}
+		}
+		
+	      // Finalize page
+		out.println("</div><!-- /content -->");
+		
+		out.println("<div data-role=\"footer\" class=\"footer-docs\" data-theme=\"c\">");
+		out.println("       <p class=\"right\"></p>");
+		out.println("       <p>&copy; 2013 Regents University of California</p>");
+		out.println("</div> <!-- /footer -->");
+		
+		out.println("</div> <!-- /page -->");
+		out.println("</body>");
+		out.println("</html>");
+		
+	}
+		
 	public void showBrowseTree(JspWriter out, String term)
-		throws Exception
+	throws Exception
 	{
 		if(igpp.util.Text.isEmpty(term)) term = "Spase";
 		
 		out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
 		out.println("<tree>");
-		showBrowseTree(out, term, "1", 0);
+		showBrowseTree(out, this.database, term, "1", 0);
 		out.println("</tree>");
 	}
 		
-	public void showBrowseTree(JspWriter out, String term, String occur, int depth)
+	public void showBrowseTree(JspWriter out, String context, String term, String occur, int depth)
 		throws Exception
 	{
 		String query;
@@ -365,12 +701,12 @@ public class Search extends SmartHttpServlet
 			;
 
 		isNew = false;
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		while(resultSet.next()) {
 			isNew = igpp.util.Text.isMatch(resultSet.getString("Since"), this.version);
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		query = "select" 
 			+ " ontology.*"
@@ -380,8 +716,8 @@ public class Search extends SmartHttpServlet
 			+ " Order By ontology.Pointer"
 		;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		showNode = true;
 		nRow = 0;
@@ -393,6 +729,7 @@ public class Search extends SmartHttpServlet
 				buffer = " term=\"" + term + "\""
 					    + " occur=\"" + occur + "\""
 					    + " isnew=\"" + isNew + "\""
+					    + " context=\"" + this.database + "\""
 					    + " type=\"" + getValueType(term) + "\""
 					    ;
 				out.println("<node " + buffer + ">");
@@ -400,14 +737,18 @@ public class Search extends SmartHttpServlet
 			}
 
 			// Show elements
-			showBrowseTree(out, resultSet.getString("Element"), resultSet.getString("Occurence"), depth);
+			if(resultSet.getString("Type").startsWith("base:")) context = "spase-model";
+			else context = this.database;
+			
+			showBrowseTree(out, context, resultSet.getString("Element"), resultSet.getString("Occurence"), depth);
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		if(nRow == 0) {	// If no sub-terms - print term
 			buffer = " term=\"" + term + "\""
 				    + " occur=\"" + occur + "\""
 				    + " isnew=\"" + isNew + "\""
+				    + " context=\"" + context + "\""
 				    + " type=\"" + getValueType(term) + "\""
 				    ;
 			out.println("<leaf " + buffer + "/>");
@@ -464,7 +805,7 @@ public class Search extends SmartHttpServlet
 		
 		out.println("<input type=\"submit\" value=\"Refresh\"></form>");
 		
-		out.println("<a href=\"" + this.scriptName + "?version=" + this.version + "\">Search the Dictionary</a>");
+		out.println("<a href=\"" + this.scriptName + "?context=" + this.database + "&version=" + this.version + "\">Search the Dictionary</a>");
 		
 		if(this.generation > 1) {
 			out.println(
@@ -478,7 +819,7 @@ public class Search extends SmartHttpServlet
 		
 		out.println("<table class=\"tree\">"); 
 		if(this.generation > 1) {
-			showTree2(out, "Spase", 0, "1", "", "");
+			showTree2(out, "Spase", 0, "1", "", "", "");
 		} else {
 			showTree1(out, "Spase", 0, true, this.showLinks);
 		}
@@ -510,8 +851,8 @@ public class Search extends SmartHttpServlet
 		       + " order by dictionary.Term"
 		       ;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
     	// Store results
 		while(resultSet.next()) {
@@ -522,7 +863,7 @@ public class Search extends SmartHttpServlet
 			termDef.attributes = resultSet.getString("Attributes");
 			showXMLTerm(out, termDef);
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		out.println("</spaseDD>");
 		
@@ -560,8 +901,8 @@ public class Search extends SmartHttpServlet
 	          + " Order By ontology.Pointer"
 	          ;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
     	// Process results
     	showName = true;
@@ -574,7 +915,7 @@ public class Search extends SmartHttpServlet
 			}
 			showTemplate(out, resultSet.getString("Element"), indent+1);
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		showTemplateTerm(out, term, indent, showName, true);
 	}
 
@@ -602,23 +943,27 @@ public class Search extends SmartHttpServlet
 		
 		if(this.version.length() == 0) versionText = "Most current";
 		else versionText = this.version;
-		
+
+		out.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+		out.println("<html>");
+
 		// Show search form
 		out.println(
-			  "<h1>Search the SPASE data dictionary</h1><br>"
+			  "<h1>Search the SPASE " + contextName + " dictionary</h1><br>"
 			+ "Use the wildcard (*) for unconstrained portions of a search.<br>"
 			+ "<form name=\"SearchForm\" method=\"get\" action=\"" + this.scriptName + "\">"
-			+ "<input type=\"hidden\" name=\"style\" value=\"entry\">"
+			+ "<input type=\"hidden\" name=\"style\" value=\"entry\" />"
+			+ "<input type=\"hidden\" name=\"context\" value=\"" + database + "\" />"
 			+ "<table class=\"form\">"
 			+ "<tr>"
-			+ "<td align=\"center\" colspan=\"2\">Search for: <input type=\"text\" name=\"term\" value=\"" + this.term + "\"></td>"
+			+ "<td align=\"center\" colspan=\"2\">Search for: <input type=\"text\" name=\"term\" value=\"" + this.term + "\" /></td>"
 			+ "</tr>"
 			+ "<tr>"
 			+ "<td align=\"center\" colspan=\"2\">"
 			+ "In the:"
-			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"dictionary\" " + dirSel + ">Dictionary"
-			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"list\"" + listSel + ">List"
-			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"type\"" + typeSel + ">Data Type"
+			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"dictionary\" " + dirSel + "/>Dictionary"
+			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"list\"" + listSel + "/>List"
+			+ "&nbsp;<input type=\"radio\" name=\"scope\" value=\"type\"" + typeSel + "/>Data Type"
 			+ "</td>"
 			+ "</tr>"
 			);
@@ -628,15 +973,15 @@ public class Search extends SmartHttpServlet
 
 		out.println(
 			  "<tr>"
-			+ "<td colspan=\"2\" align=center>"
-			+ "<input type=\"submit\" name=\"submit\" value=\"Search\">"
+			+ "<td align=\"center\" colspan=\"2\" >"
+			+ "<input type=\"submit\" name=\"submit\" value=\"Search\" />"
 			+ "</td>"
 			+ "</tr>"
 			+ "<tr>"
 			+ "<td align=\"center\" colspan=\"2\"> Dictionary version: " + versionText + " [<a href=history.jsp>History</a>]</td>"
 			+ "</tr>"
 			+ "<tr>"
-			+ "<td colspan=\"2\" align=center>"
+			+ "<td align=\"center\" colspan=\"2\" >"
 			+ "<a href=\"" + this.scriptName + "?style=tree&version=" + this.version + "&showLinks=on&showOccur=on\">View dictionary as a entity tree</a>"
 			+ "</td>"
 			+ "</tr>"
@@ -649,7 +994,7 @@ public class Search extends SmartHttpServlet
 			pattern = Encode.sqlEncode(this.term);
 			if(pattern.length() == 0) pattern = "%";	// Everything
 			
-			out.println("<a target=_blank href=card.jspf?view=" + this.style + ">How to read an entry</a>");
+			out.println("<a target=_blank href=card.html?view=" + this.style + ">How to read an entry</a>");
 		
 			// Dictionary search     
 			if(this.scope.compareTo("dictionary") == 0) count = showDictionary(out, pattern);
@@ -664,6 +1009,7 @@ public class Search extends SmartHttpServlet
 				out.println("<br>No matches found.<br>");
 			}
 		}
+		out.println("</html>");
 	}   
 
 	public void versionMenu(JspWriter out, boolean inTable)
@@ -674,24 +1020,29 @@ public class Search extends SmartHttpServlet
 		String	ver;
 		String	curVer = null;
 		String	buffer;
+		String  where = "";
 		
 		String	query;
 		Statement	statement;
 		ResultSet	resultSet;
 		
+		if(database.equals("spase-model")) {	// Only certain versions
+			where = " where Version LIKE '%.%.0'"
+			   		+ " OR Version LIKE '1.2.%'"
+			   		+ " OR Version LIKE '1.3.%'"
+			   		+ " OR Version LIKE '2.%.%'"
+				    + " order by ID DESC"
+			   		;
+		}
 		query = "select"
 	   		+ " * "
 	   		+ " from history"
-	   		+ " where Version LIKE '%.%.0'"
-	   		+ " OR Version LIKE '1.2.%'"
-	   		+ " OR Version LIKE '1.3.%'"
-	   		+ " OR Version LIKE '2.%.%'"
-		    + " order by ID DESC"
+	   		+ where
 		    ;
 		if(inTable) {
 			out.println(
 				  "<tr>"
-				+ "<td colspan=\"2\">"
+				+ "<td align=\"center\" colspan=\"2\">"
 				);
 		}
 		out.println(
@@ -702,8 +1053,8 @@ public class Search extends SmartHttpServlet
     	curVer = "";
     	ver = "";
     	checked = "";
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		while(resultSet.next()) {
 	    	ver = resultSet.getString("Version");
 	    	if(ver.compareTo(curVer) != 0) {	// Write entry
@@ -714,7 +1065,7 @@ public class Search extends SmartHttpServlet
 		    	buffer = resultSet.getString("Description");
 		    	if(buffer == null) buffer = "";
 		    	if(buffer.compareTo("Released.") == 0) draft = "";
-				out.println("&nbsp;<input type=\"radio\" name=\"version\" value=\"" + ver + "\" " + checked + ">" + ver + draft);   		
+				out.println("&nbsp;<span style=\"white-space:nowrap; display:inline-block\"><input type=\"radio\" name=\"version\" value=\"" + ver + "\" " + checked + ">" + ver + draft + "</span>");   		
 	    	}
 		}
 		out.println(
@@ -723,7 +1074,7 @@ public class Search extends SmartHttpServlet
 			+ "</table>"
 			);
 		
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 	   
 	   if(inTable) {
 			out.println(
@@ -757,7 +1108,7 @@ public class Search extends SmartHttpServlet
 		if(inTable) {
 			out.println(
 				  "<tr>"
-				+ "<td colspan=\"2\">"
+				+ "<td align=\"center\" colspan=\"2\">"
 				);
 		}
 			
@@ -765,21 +1116,21 @@ public class Search extends SmartHttpServlet
 			  "Show Only Items Added Since: "
 			);
 			
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		while(resultSet.next()) {
 	    	ver = resultSet.getString("Version");
 	    	checked = "";
 	    	if(ver.compareTo(this.since) == 0) { checked = "checked"; inception = false; }
 	    	
-			out.println("&nbsp;<input type=\"radio\" name=\"since\" value=\"" + ver + "\" " + checked + ">" + ver);
+			out.println("&nbsp;<span style=\"white-space:nowrap; display:inline-block\"><input type=\"radio\" name=\"since\" value=\"" + ver + "\" " + checked + ">" + ver + "</span>");
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 	   
 		checked = "";
 		if(inception) checked = "checked";	   
 		out.println(
-			  "&nbsp;<input type=\"radio\" name=\"since\" value=\"0.0.0\" " + checked + ">Inception"
+			  "&nbsp;<span style=\"white-space:nowrap; display:inline-block\"><input type=\"radio\" name=\"since\" value=\"0.0.0\" " + checked + ">Inception</span>"
 			);
 		if(inTable) {
 			out.println(
@@ -805,13 +1156,28 @@ public class Search extends SmartHttpServlet
 		   		+ " where Description = 'Released.'"
 			    ;
 		
-			statement = this.access.beginQuery();
-			resultSet = this.access.select(statement, query);
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
 			while(resultSet.next()) {
 		    	this.version = resultSet.getString("max(Version)");
 		   }
-		   this.access.endQuery(statement, resultSet);
+		   getAccess(this.database).endQuery(statement, resultSet);
 		}
+		
+		if(this.version == null) {	// No released versions - try any version
+			query = "select"
+			   		+ " max(Version) "
+			   		+ " from history"
+				    ;
+			
+				statement = getAccess(this.database).beginQuery();
+				resultSet = getAccess(this.database).select(statement, query);
+				while(resultSet.next()) {
+			    	this.version = resultSet.getString("max(Version)");
+			   }
+			   getAccess(this.database).endQuery(statement, resultSet);			
+		}
+		if(this.version == null) this.version = "0.0.0";
 		
 		// Set generation
 		this.generation = 2;	// Newest
@@ -824,6 +1190,44 @@ public class Search extends SmartHttpServlet
 		throws IOException
 	{
 	   out.println("<center>Dictionary version: " + this.version + "[<a href=history.jsp>History</a>]</center>");
+	}
+
+	public TermDef getDictionaryTerm(String term)
+			throws Exception
+		{
+			String	query;
+			Statement	statement;
+			ResultSet	resultSet;
+			TermDef termDef = new TermDef();
+			
+			System.out.println("getDictionaryTerm: " + term + "; version: " + this.version + "; since: " + this.since);
+			
+			query = "select" 
+				+ " dictionary.*"
+				+ " from dictionary"
+				+ " where dictionary.Term='" + term + "'"
+				+ " and dictionary.Version='" + this.version + "'"
+				+ " and dictionary.Since>'" + this.since + "'"
+				+ " order by dictionary.Term"
+				;
+
+			System.out.println("getDictionaryTerm query: " + query);
+
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
+			
+			// Store results
+			while(resultSet.next()) {
+				termDef.term = resultSet.getString("Term");
+				termDef.description = resultSet.getString("Definition");
+				termDef.list = resultSet.getString("List");
+				termDef.type = resultSet.getString("Type");
+				termDef.attributes = resultSet.getString("Attributes");
+				termDef.since = resultSet.getString("Since");
+			}
+			getAccess(this.database).endQuery(statement, resultSet);
+
+			return termDef;
 	}
 	
 	public int showDictionary(JspWriter out)
@@ -850,8 +1254,8 @@ public class Search extends SmartHttpServlet
 			+ " order by dictionary.Term"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		// Store results
 		while(resultSet.next()) {
@@ -868,7 +1272,7 @@ public class Search extends SmartHttpServlet
 				showTerm(out, termDef);
 			}
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 
 		return count;
 }
@@ -969,8 +1373,8 @@ public class Search extends SmartHttpServlet
 				+ " order by list.Name"
 				;
 		
-			statement = this.access.beginQuery();
-			resultSet = this.access.select(statement, query);
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
 		
 			out.println(
 				  "<tr>"
@@ -1010,8 +1414,8 @@ public class Search extends SmartHttpServlet
 						+ " order by member.Term"
 						;
 				
-					statement2 = this.access.beginQuery();
-					resultSet2 = this.access.select(statement2, query);
+					statement2 = getAccess(this.database).beginQuery();
+					resultSet2 = getAccess(this.database).select(statement2, query);
 		
 					while(resultSet2.next()) {
 						url = this.scriptName + "?term=" + Encode.urlEncode(resultSet2.getString("Term"))
@@ -1027,10 +1431,10 @@ public class Search extends SmartHttpServlet
 							);
 						label = "";
 					}
-					this.access.endQuery(statement2, resultSet2);
+					getAccess(this.database).endQuery(statement2, resultSet2);
 				}
 			}
-			this.access.endQuery(statement, resultSet);
+			getAccess(this.database).endQuery(statement, resultSet);
 			
 			out.println(
 				  "</table>"
@@ -1089,8 +1493,8 @@ public class Search extends SmartHttpServlet
 			+ " order by member.List"
 			;
 	
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		label ="Member of:";
 		while(resultSet.next()) {
@@ -1118,7 +1522,7 @@ public class Search extends SmartHttpServlet
 				);
 				label = "";
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		if(label.length() == 0) {	// Finish table
 			out.println(
@@ -1168,7 +1572,8 @@ public class Search extends SmartHttpServlet
 					
 		// Entry header and definition         
 		out.println(
-			  "<table class=\"definition\">"
+			  "<div class=\"definition\">"
+			+ "<table class=\"definition\">"
 			+ "<!-- Defnition start -->"
 			+ "<tr>"
 			+ "<td class=\"term\">" + termDef.term + "</td>"
@@ -1185,7 +1590,7 @@ public class Search extends SmartHttpServlet
 			+ "   <table>"
 			+ "   <tr>"
 			+ "   <td width=\"40\">&nbsp;</td>"
-			+ "   <td>" + "Since: " + termDef.since + "</td>"
+			+ "   <td class=\"nowrap\">" + "Since: " + termDef.since + "</td>"
 			+ "   </tr>"
 			+ "   </table>"
 			+ "</td>"
@@ -1216,7 +1621,7 @@ public class Search extends SmartHttpServlet
 					;
 				out.println(
 					  "<tr>"
-					+ "<td>" + label + "</td>"
+					+ "<td class=\"nowrap\">" + label + "</td>"
 					+ "<td><a href=\"" + url + "\">" + item + "</a></td>"
 					+ "</tr>"
 					);
@@ -1244,8 +1649,8 @@ public class Search extends SmartHttpServlet
 				+ " order by list.Name"
 				;
 		
-			statement = this.access.beginQuery();
-			resultSet = this.access.select(statement, query);
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
 		
 			// Display values
 			needHeader = true;
@@ -1273,7 +1678,7 @@ public class Search extends SmartHttpServlet
 					url = Encode.urlEncode(termDef2.reference);
 					out.println(
 						  "<tr>"
-						+ "<td>" + label + "</td>"
+						+ "<td class=\"nowrap\">" + label + "</td>"
 						+ "<td>Open List</td>"
 						+ "</tr>"
 						+ "<tr>"
@@ -1295,7 +1700,7 @@ public class Search extends SmartHttpServlet
 						);
 				}
 			}
-			this.access.endQuery(statement, resultSet);
+			getAccess(this.database).endQuery(statement, resultSet);
 			
 			if(! needHeader) {	// We need to close this section
 				out.println(
@@ -1320,8 +1725,8 @@ public class Search extends SmartHttpServlet
 			+ " order by ontology.Element"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		needHeader = true;
 		label = "Sub-elements:";
@@ -1343,18 +1748,19 @@ public class Search extends SmartHttpServlet
 			url = this.scriptName + "?term=" + Encode.urlEncode(resultSet.getString("Element"))
 				+ "&style=" + this.style
 				+ "&scope=dictionary"
-				+ "&version=" + this.version
 				;
+			if(resultSet.getString("Type").startsWith("base:")) url += "&context=spase-model";
+			else {  url += "&context=" + database + "&version=" + this.version; }
 			item = "";
 			out.println(
 				  "<tr>"
-				+ "<td>" + label + "</td>"
+				+ "<td class=\"nowrap\">" + label + "</td>"
 				+ "<td><a href=\"" + url + "\">" + resultSet.getString("Element") + "</a>" + item + "</td>"
 				+ "</tr>"
 				);
 			label = "";
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		if(! needHeader) {	// We printed a header
 			out.println(
@@ -1377,8 +1783,8 @@ public class Search extends SmartHttpServlet
 			+ " order by ontology.Object"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		needHeader = true;
 		label = "Used by:";
@@ -1399,18 +1805,20 @@ public class Search extends SmartHttpServlet
 			url = this.scriptName + "?term=" + Encode.urlEncode(resultSet.getString("Object"))
 				+ "&style=" + this.style
 				+ "&scope=dictionary"
-				+ "&version=" + this.version
 				;
+			if(resultSet.getString("Type").startsWith("base:")) url += "&context=spase-model";
+			else {  url += "&context=" + database + "&version=" + this.version; }
+
 			item = "";
 			out.println(
 				  "<tr>"
-				+ "<td>" + label + "</td>"
+				+ "<td class=\"nowrap\">" + label + "</td>"
 				+ "<td><a href=\"" + url + "\">" + resultSet.getString("Object") + "</a>" + item + "</td>"
 				+ "</tr>"
 				);
 			label = "";
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 
 		if(! needHeader) {	// We printed a header
 			out.println(
@@ -1431,8 +1839,8 @@ public class Search extends SmartHttpServlet
 			+ " and member.Version='" + this.version + "'"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 
 		needHeader = true;
 		label = "Member of:";		
@@ -1458,13 +1866,13 @@ public class Search extends SmartHttpServlet
 			item = "";
 			out.println(
 				  "<tr>"
-				+ "<td>" + label + "</td>"
+				+ "<td class=\"nowrap\">" + label + "</td>"
 				+ "<td><a href=\"" + url + "\">" + resultSet.getString("List") + "</a>" + item + "</td>"
 				+ "</tr>"
 				);
 			label = "";
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 
 		if(! needHeader) {	// We printed a header
 			out.println(
@@ -1481,10 +1889,243 @@ public class Search extends SmartHttpServlet
 		out.println(
 			  "<!-- Defnition End -->"
 			+ "</table>"
+			+ "</div>"
 			+ "<br>"
 			);
 	}
 
+	public void showTerm3(JspWriter out, TermDef termDef, String path)
+			throws Exception
+		{
+			String	typeURL;
+			String[]	list;
+			String		buffer;
+			String		description;
+			String		label;
+			String		item;
+			String		type;
+			String		url;
+			boolean		needBreak;
+			
+			String		query;
+			Statement	statement;
+			ResultSet	resultSet;
+			
+			TermDef termDef2 = new TermDef();
+			
+			typeURL = this.scriptName
+				+ "?term=" + Encode.urlEncode(termDef.type) 
+				+ "&style=" + this.style
+				+ "&scope=type"
+				+ "&version=" + this.version
+				+ "&path=" + path
+				;
+			description = Encode.htmlEncode(termDef.description);
+						
+			// Entry header and definition         
+			out.println(
+				  "<!-- Definition -->"
+				+ "<div class=\"right\"><a href=\"" + typeURL + "\">" + termDef.type + "</a></div>"
+				+ "<div class=\"title\">" + termDef.term + "</div>"
+				+ "<div class=\"clear\"></div>"
+				+ "<p>"	+ description + "</p>"
+				+ "<p class=\"nowrap\">" + "Since: " + termDef.since + "</p>"
+				);
+			
+			needBreak = false;
+			out.println("<table>");
+			
+			// Show attributes - if any
+			label = "Attributes:";
+			buffer = termDef.attributes.trim();
+			if(buffer.length()> 0) {
+				list = buffer.split(",");
+				out.println(
+					  "<!-- Attributes Start -->"
+					);
+				for(int i = 0; i < list.length; i++) {
+					item = list[i];
+					url = this.scriptName + "?term=" + Encode.urlEncode(item.trim())
+						+ "&style=" + this.style
+						+ "&scope=dictionary"
+						+ "&version=" + this.version
+						+ "&path=" + path
+						;
+					out.println(
+						  "<tr>"
+						+ "<td class=\"nowrap\">" + label + "</td>"
+						+ "<td><a href=\"" + url + "\">" + item + "</a></td>"
+						+ "</tr>"
+						);
+					label = "";
+				} 
+			}
+			if(label.length() == 0) {
+				needBreak = true;
+				out.println(
+					"<!-- Attributes End -->"
+					);
+			}
+			
+			// Show enumerated list - if one specified
+			term = termDef.list.trim();
+			if(termDef.type.compareTo("Enumeration") == 0) {
+				query = "select" 
+					+ " list.*"
+					+ " from list"
+					+ " where list.Name = '" + term + "'"
+					+ " and list.Version='" + this.version + "'"
+					+ " order by list.Name"
+					;
+			
+				statement = getAccess(this.database).beginQuery();
+				resultSet = getAccess(this.database).select(statement, query);
+			
+				// Display values
+				label = "Allowed Values:";
+				while(resultSet.next()) {
+					termDef2.description = resultSet.getString("Description");
+					termDef2.reference = resultSet.getString("Reference");
+					termDef2.type = resultSet.getString("Type");
+					
+					if(needBreak) { out.println("<tr><td>&nbsp;</td><td>&nbsp;</td></tr>"); needBreak = false; }
+					out.println(
+						  "<!-- Values start -->"
+						);
+		
+					// Process results
+					description = Encode.htmlEncode(termDef2.description);
+					type = termDef2.type;
+					if(type.compareTo("Open") == 0) {
+						url = Encode.urlEncode(termDef2.reference);
+						out.println(
+							  "<tr>"
+							+ "<td>" + label + "</td>"
+							+ "<td>Open List</td>"
+							+ "</tr>"
+							+ "<tr>"
+							+ "<td>&nbsp;</td>"
+							+ "<td>For a current list see <a href=\"" + url + "\">" + termDef2.reference + "</a></td>"
+							+ "</tr>"
+							);
+					} else {	// Closed
+						showLinks = true;
+						out.println(
+							  "<tr>"
+							+ "<td  class=\"nowrap\" valign=top>" + label + "</td>"
+							+ "<td>"
+							);
+						printEnumeration(out, "", termDef.term, 0, false);
+						out.println(
+							  "</td>"
+							+ "</tr>"
+							);
+					}
+					label = "";
+				}
+				getAccess(this.database).endQuery(statement, resultSet);
+				
+				if(label.length() == 0) {
+					needBreak = true;
+					out.println(
+							"<!-- Values End -->"
+					);
+				}
+			}
+			
+			
+			// Show list of parent elements     
+			query = "select" 
+				+ " ontology.*"
+				+ " from ontology"
+				+ " where ontology.Element = '" + Encode.sqlEncode(termDef.term) + "'"
+				+ " and ontology.Version='" + this.version + "'"
+				+ " order by ontology.Object"
+				;
+			
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
+			
+			label = "Used by:";
+			while(resultSet.next()) {
+				if(needBreak) { out.println("<tr><td>&nbsp;</td><td>&nbsp;</td></tr>"); needBreak = false; }
+				if(label.length() > 0) {
+					out.println(
+						  "<!-- Parent Start -->"
+						);
+				}
+				url = this.scriptName + "?term=" + Encode.urlEncode(resultSet.getString("Object"))
+					+ "&style=" + this.style
+					+ "&scope=dictionary"
+					+ "&path=" + path
+					;
+				if(resultSet.getString("Type").startsWith("base:")) url += "&context=spase-model";
+				else {  url += "&context=" + database + "&version=" + this.version; }
+				
+				item = "";
+				out.println(
+					  "<tr>"
+					+ "<td class=\"nowrap\">" + label + "</td>"
+					+ "<td><a href=\"" + url + "\">" + resultSet.getString("Object") + "</a>" + item + "</td>"
+					+ "</tr>"
+					);
+				label = "";
+			}
+			getAccess(this.database).endQuery(statement, resultSet);
+
+			if(label.length() == 0) {
+				needBreak = true;
+				out.println(
+					"<!-- Parent End -->"
+				);
+			}
+			
+			// Show list of reference from elements     
+			query = "select" 
+				+ " member.*"
+				+ " from member"
+				+ " where member.Term LIKE '" + Encode.sqlEncode(termDef.term) + "'"
+				+ " and member.Version='" + this.version + "'"
+				;
+			
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
+
+			label = "Member of:";		
+			while(resultSet.next()) {
+				if(needBreak) { out.println("<tr><td>&nbsp;</td><td>&nbsp;</td></tr>"); needBreak = false; }
+				if(label.length() > 0) {
+					out.println(
+						  "<!-- References Start -->"
+						);
+				}
+				url = this.scriptName + "?term=" + Encode.urlEncode(resultSet.getString("List"))
+					+ "&style=" + this.style
+					+ "&scope=dictionary"
+					+ "&version=" + this.version
+					+ "&path=" + path
+					;
+				item = "";
+				out.println(
+					  "<tr>"
+					+ "<td class=\"nowrap\">" + label + "</td>"
+					+ "<td><a href=\"" + url + "\">" + resultSet.getString("List") + "</a>" + item + "</td>"
+					+ "</tr>"
+					);
+				label = "";
+			}
+			getAccess(this.database).endQuery(statement, resultSet);
+
+			if(label.length() == 0) {
+				needBreak = true;
+				out.println(
+					  "<!-- References End -->"
+				);
+			}
+			
+			out.println("</table>");
+		}
+	
 	public void showTemplateTerm(JspWriter out, String term, int indent, boolean openTerm, boolean endTerm)
 		throws Exception
 	{
@@ -1541,8 +2182,8 @@ public class Search extends SmartHttpServlet
 				+ " order by list.Name"
 				;
 		
-			statement = this.access.beginQuery();
-			resultSet = this.access.select(statement, query);
+			statement = getAccess(this.database).beginQuery();
+			resultSet = getAccess(this.database).select(statement, query);
 			
 			// Store results
 			while(resultSet.next()) {
@@ -1560,7 +2201,7 @@ public class Search extends SmartHttpServlet
 				}
 				out.println("</values>");
 			}
-			this.access.endQuery(statement, resultSet);
+			getAccess(this.database).endQuery(statement, resultSet);
 		}
 		
 		
@@ -1573,8 +2214,8 @@ public class Search extends SmartHttpServlet
 			+ " order by ontology.Element"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		needHeader = true;
 		while(resultSet.next()) {
@@ -1584,7 +2225,7 @@ public class Search extends SmartHttpServlet
 			}
 			out.println("<element>" + resultSet.getString("Element") + "</element>");
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		if(! needHeader) {	// We printed a header
 			out.println("</elements>");
@@ -1599,8 +2240,8 @@ public class Search extends SmartHttpServlet
 			+ " order by ontology.Object"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		needHeader = true;		        
 		while(resultSet.next()) {
@@ -1610,7 +2251,7 @@ public class Search extends SmartHttpServlet
 			}
 			out.println("<usedby>" + resultSet.getString("Object") + "</usedby>");
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		if(! needHeader) {	// We printed a header
 			out.println("</usage>");
@@ -1641,8 +2282,8 @@ public class Search extends SmartHttpServlet
 			+ " order by list.Name"
 			;
 			
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		while(resultSet.next()) {
 			count++;
 			termDef.term = resultSet.getString("Name");
@@ -1693,8 +2334,8 @@ public class Search extends SmartHttpServlet
 					+ " order by list.Name"
 					;
 				
-				statement2 = this.access.beginQuery();
-				resultSet2 = this.access.select(statement2, query2);
+				statement2 = getAccess(this.database).beginQuery();
+				resultSet2 = getAccess(this.database).select(statement2, query2);
 				out.println(
 					  "<tr>"
 					+ "<td colspan=\"2\">"
@@ -1715,11 +2356,11 @@ public class Search extends SmartHttpServlet
 					term = term.replace(" ", "&nbsp;");
 					out.println(
 						"<tr><td width=\"50\">&nbsp;</td>"
-						+ "<td valign=top><a href=\"" + url + "\">" + term + "</a></td>"
+						+ "<td  class=\"nowrap\" valign=top><a href=\"" + url + "\">" + term + "</a></td>"
 						+ "<td>" + definition + "</td>"
 						);
 				}
-				this.access.endQuery(statement2, resultSet2);
+				getAccess(this.database).endQuery(statement2, resultSet2);
 				
 				// If no terms found warn user
 				if(n == 0) {
@@ -1741,7 +2382,7 @@ public class Search extends SmartHttpServlet
 				+ "<br>"
 				);
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		return count;
 	}
@@ -1763,8 +2404,8 @@ public class Search extends SmartHttpServlet
 			+ " order by type.Name"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		while(resultSet.next()) {
 			count++;
@@ -1781,7 +2422,7 @@ public class Search extends SmartHttpServlet
 			out.println("</table>");
 			out.println("<br>");
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		return count;
 	}
@@ -1815,8 +2456,8 @@ public class Search extends SmartHttpServlet
 				;
 		}
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 
 		while(resultSet.next()) {
 			endRow = true;
@@ -1855,10 +2496,10 @@ public class Search extends SmartHttpServlet
 			}		
 			if(endRow) out.println("</tr>");
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 	}
 	
-	public void showTree2(JspWriter out, String term, int indent, String occur, String group, String since)
+	public void showTree2(JspWriter out, String term, int indent, String occur, String group, String type, String since)
 		throws Exception
 	{
 		String query;
@@ -1879,12 +2520,12 @@ public class Search extends SmartHttpServlet
 			;
 
 		isNew = false;
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		while(resultSet.next()) {
 			isNew = igpp.util.Text.isMatch(resultSet.getString("Since"), this.version);
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		query = "select" 
 			+ " ontology.*"
@@ -1894,8 +2535,8 @@ public class Search extends SmartHttpServlet
 			+ " Order By ontology.Pointer"
 		;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		showName = true;
 		out.println("<tr>");
@@ -1908,6 +2549,7 @@ public class Search extends SmartHttpServlet
 			termDef.element = resultSet.getString("Element");
 			termDef.occurence = resultSet.getString("Occurence");
 			termDef.group = resultSet.getString("Group");
+			termDef.type = resultSet.getString("Type");
 		
 			nRow++;
 			endRow = true;
@@ -1915,7 +2557,7 @@ public class Search extends SmartHttpServlet
 			// Print object name
 			if(showName) {
 				boolean temp = igpp.util.Text.isMatch(since, this.version);
-				printTerm(out, term, occur, group, temp);
+				printTerm(out, term, occur, group, getContextFromType(type), temp);
 				if(this.showAttrib) endRow = printAttrib(out, term, indent);
 				if(! endRow) printRowIndent(out, indent+1);
 				// Print element
@@ -1924,13 +2566,13 @@ public class Search extends SmartHttpServlet
 				out.println("</tr>");
 			}	
 			// Show elements
-			showTree2(out, termDef.element, indent+1, termDef.occurence, termDef.group, termDef.since);
+			showTree2(out, termDef.element, indent+1, termDef.occurence, termDef.group, termDef.type, termDef.since);
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		if(nRow == 0) {	// If no sub-terms - print term
 			endRow = true;
-			printTerm(out, term, occur, group, isNew);
+			printTerm(out, term, occur, group, getContextFromType(type), isNew);
 			if(this.showValues) endRow = printValues(out, term, indent);
 			if(this.showAttrib) endRow = printAttrib(out, term, indent);
 			if(endRow) out.println("</tr>");
@@ -1955,8 +2597,8 @@ public class Search extends SmartHttpServlet
 			+ " and dictionary.Version='" + this.version + "'"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		itIs = "";
 		while(resultSet.next()) {
@@ -1964,7 +2606,7 @@ public class Search extends SmartHttpServlet
 			// buffer = resultSet.getString("Type").trim();
 			// if(buffer.compareTo("Enumeration") == 0) itIs = resultSet.getString("List");
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		return itIs;
 	}
@@ -1985,13 +2627,13 @@ public class Search extends SmartHttpServlet
 			+ " and dictionary.Version='" + this.version + "'"
 		;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		while(resultSet.next()) {
 			valueType = resultSet.getString("Type").trim();
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		// Clean-up
 		return valueType;
@@ -2016,8 +2658,8 @@ public class Search extends SmartHttpServlet
 			+ " and dictionary.Version='" + this.version + "'"
 		;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		showHas = true;
 		while(resultSet.next()) {
@@ -2041,7 +2683,7 @@ public class Search extends SmartHttpServlet
 				out.println("</tr>");
 			}
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 		
 		// Clean-up
 		return showHas;
@@ -2090,8 +2732,8 @@ public class Search extends SmartHttpServlet
 			+ " and member.Version='" + this.version + "'"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 
 		while(resultSet.next()) {
 			termDef.term = resultSet.getString("Term");
@@ -2102,7 +2744,7 @@ public class Search extends SmartHttpServlet
 				out.println("<td" + type + ">");
 			}
 			buffer = "";
-			if(this.showLinks) buffer += "<a" + type + " href=\"" + this.scriptName + "?term=" + Encode.urlEncode(termDef.term) + "&style=" + this.style + "&scope=dictionary&version=" + this.version + "\">";
+			if(this.showLinks) buffer += "<a" + type + " href=\"" + this.scriptName + "?term=" + Encode.urlEncode(termDef.term) + "&style=" + this.style + "&scope=dictionary&version=" + this.version + "&path=" + path + "\">";
 			buffer += termDef.term;
 			if(this.showLinks) buffer += "</a>";
 			// Print main item
@@ -2119,7 +2761,7 @@ public class Search extends SmartHttpServlet
 				out.print("</tr>");
 			}
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 	}
 
 	public void printXMLEnumeration(JspWriter out, String prefix, String term, int indent, boolean inTree)
@@ -2145,8 +2787,8 @@ public class Search extends SmartHttpServlet
 			+ " and member.Version='" + this.version + "'"
 			;
 		
-		statement = this.access.beginQuery();
-		resultSet = this.access.select(statement, query);
+		statement = getAccess(this.database).beginQuery();
+		resultSet = getAccess(this.database).select(statement, query);
 		
 		// Store results
 		while(resultSet.next()) {
@@ -2162,10 +2804,10 @@ public class Search extends SmartHttpServlet
 				printXMLEnumeration(out, newPrefix + termDef.term, termDef.term, indent, inTree);
 			}
 		}
-		this.access.endQuery(statement, resultSet);
+		getAccess(this.database).endQuery(statement, resultSet);
 	}
 
-	public void printTerm(JspWriter out, String term, String occur, String group, boolean isNew)
+	public void printTerm(JspWriter out, String term, String occur, String group, String context, boolean isNew)
 		throws IOException
 	{
 		String	buffer = "";
@@ -2188,9 +2830,14 @@ public class Search extends SmartHttpServlet
 			}
 		}
 		
+		String versionParm = "";
+		if(type.equals(getContext()))	{ // Same context use current version
+			versionParm = "&version=" + this.version;
+		}
+		
 		// Generate term definition
 		out.println("<td" + type + "><b>");
-		if(this.showLinks) out.print("<a" + type + " href=\"" + this.scriptName + "?term=" + Encode.urlEncode(term) + "&style=entry&scope=dictionary&version=" + this.version + "\">");
+		if(this.showLinks) out.print("<a" + type + " href=\"" + this.scriptName + "?context=" + Encode.urlEncode(context) + "&term=" + Encode.urlEncode(term) + "&style=entry&scope=dictionary" + versionParm + "\">");
 		out.print(term.replace(" ", "&nbsp;"));
 		if(this.showLinks) out.print("</a>");
 		if(this.showOccur) {
@@ -2239,6 +2886,18 @@ public class Search extends SmartHttpServlet
 		} catch(Exception e) {
 		}
 	}
+	
+	public String getContextFromType(String type)
+	{
+		String[] part = type.split(":", 2);
+		if(part.length > 1) {
+			return typeToContextMap.get(part[0]);
+		}
+		
+		return getContext();
+	}
+	
+	public Query getAccess(String database) { return this.access; }
 
 	// Passed parameters
 	public boolean	getShowLinks() { return this.showLinks; }
@@ -2274,6 +2933,25 @@ public class Search extends SmartHttpServlet
 	public String	getScope() { return this.scope; }
 	public void		setScope(String value) { this.scope = value; }
 	
+	public String	getPath() { return this.path; }
+	public void		setPath(String value) { this.path = value; }
+	
+	public String	getRealPath() { return this.realPath; }
+	public void		setRealPath(String value) { this.realPath = value; }
+	
+	public String	getContext() { return this.database; }
+	public void		setContext(String value) {
+		if(value.equals(this.database)) return;	// No change
+		this.database = value; 
+		try {
+			this.destroy();	// Close current database connections;
+
+			this.init(this.realPath, this.database);	// Switch databases (context);
+		} catch(Exception e) {
+			// What to do when an error???
+		}
+	}
+	
 	// Inner class to store term definitions
 	class TermDef {
 		public String	term;
@@ -2286,6 +2964,10 @@ public class Search extends SmartHttpServlet
 		public String	occurence;
 		public String	since;
 		public String	group;
+		
+		TermDef() {
+			term = "Undefined";
+		}
 	}
 
 }

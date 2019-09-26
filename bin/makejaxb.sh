@@ -5,27 +5,36 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-homepath=${2:-/c/projects/spase/webapp/root}
+dbname=${2:-spase-model}
+homepath=${3:-/c/projects/spase/webapp/website/site/ROOT}
+
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
+
+# "spase-model" becomes "". All others become suffix
+temp=(${dbname//-/ })
+group="-"${temp[1]}
+if [ $group = "-model" ]; then
+   group=""
+fi
 
 # Path to JAXB
 export JAXB_HOME=c:/java/jaxb
 
 # Make directory for build
-mkdir $homepath/tools/parser/build
+mkdir $homepath/tools/parser$group/build
 
 # Make the parser files
-pushd $homepath/tools/parser/build
+pushd $homepath/tools/parser$group/build
 
-/bin/rm -R -f parser$verpack
+/bin/rm -R -f parser-$verpack
 /bin/rm -R -f META-INF
 mkdir META-INF
 mkdir parser$verpack
 
 cd parser$verpack
 
-$JAXB_HOME/bin/xjc.sh -episode ../META-INF/episode.xml -p org.spase.parser$verpack $homepath/data/schema/spase-$vername.xsd -d .  
+xjc -episode ../META-INF/episode.xml -p org.spase.parser$verpack $homepath/data/schema/spase-$vername.xsd -d .  
 
 # Now compile
 javac -Djava.ext.dirs=$homepath/WEB-INF/lib:$CLASSPATH:$homepath/WEB-INF/tools/jaxb/lib -d .. org/spase/parser$verpack/*.java
@@ -35,15 +44,15 @@ javadoc -extdirs $homepath/WEB-INF/lib:$CLASSPATH:$homepath/WEB-INF/tools/jaxb/l
 
 # Build JAR file
 cd ..
-jar cf spase-jaxb-parser$verpack.jar META-INF parser$verpack org/spase/parser$verpack api/parser$verpack
+jar cf spase-jaxb-parser$group"-"$verpack.jar META-INF parser$verpack org/spase/parser$verpack api/parser$verpack
 
 # Distribute
-cp spase-jaxb-parser$verpack.jar $homepath/tools/parser
+cp spase-jaxb-parser$group"-"$verpack.jar $homepath/tools/parser$group
 rm -r -f $homepath/tools/parser/jaxb/api$verpack
 mv api/parser$verpack $homepath/tools/parser/jaxb/api$verpack
 
 popd
 
 # Clean-up
-/bin/rm -R -f $homepath/tools/parser/build
+/bin/rm -R -f $homepath/tools/parser$group/build
 

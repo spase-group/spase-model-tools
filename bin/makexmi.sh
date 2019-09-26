@@ -4,10 +4,18 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-homepath=${2:-/c/projects/spase/webapp/root}
+dbname=${2:-spase-model}
+homepath=${3:-/c/projects/spase/webapp/website/site/ROOT}
+
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
+# "spase-model" becomes "spase". All others left as is
+base=$dbname
+if [ $base = "spase-model" ]; then
+   base="spase"
+fi
+
 # Make the UML xmi file
-./runjava.sh org.spase.model.util.MakeXMI $version $homepath/data > $homepath/data/xmi/spase-$vername.xmi
-cp $homepath/data/xmi/spase-$vername.xmi $homepath/docs/xmi
+./runjava.sh org.spase.model.util.MakeXMI -a -d $dbname".db" -m $version -p $homepath/data > $homepath/data/xmi/$base-$vername.xmi
+cp $homepath/data/xmi/$base-$vername.xmi $homepath/docs/xmi

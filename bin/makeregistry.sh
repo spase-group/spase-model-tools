@@ -5,7 +5,7 @@
 #
 
 version=${1:-2.2.1}
-homepath=${2:-/c/projects/spase/webapp/root}
+homepath=${2:-/c/projects/spase/webapp/website/site/ROOT}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 

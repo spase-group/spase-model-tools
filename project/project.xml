@@ -3,12 +3,12 @@
    This file is imported by the general purpose buildfile. 
    See "build.xml" for how each property influences the build.
 -->
-<project name="project-config" basedir="." default="...">
-    <property name="version"        value="1.0.7" />
+<project name="project-config" basedir=".">
+    <property name="version"        value="1.0.12" />
     <property name="package.title"  value="SPASE Model" />
     <property name="package.name" value="spase-model" />
     <property name="package.vendor" value="UCLA/IGPP" />
-    <property name="copyright"    value="Copyright &#169; 2008-2010 Regents University of California. All Rights Reserved." />
+    <property name="copyright"    value="Copyright &#169; 2008-2015 Regents University of California. All Rights Reserved." />
     <property name="main-class"   value="org.spase.model.HelloWorld" />
     
     <property name="release.jar"   value="/projects/jar/spase" />
