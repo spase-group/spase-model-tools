@@ -4,14 +4,15 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-dbname=${2:-spase-model}
-homepath=${3:-/c/projects/spase/webapp/website/site/ROOT}
+dbname=${2:-spase-base-model}
+homepath=${3:-/c/projects/work/spase/website/site/ROOT}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
+zip="\c\Program Files\7-Zip\7z.exe"
 
 # "spase-model" becomes "spase". All others left as is
 base=$dbname
-if [ $base = "spase-model" ]; then
+if [ $base = "spase-base-model" ]; then
    base="spase"
 fi
 
@@ -37,7 +38,7 @@ mkdir $homepath/tools/stylesheet/html/xsl/"display"$group"-"$verpack
 
 # Package XSL files
 cd $homepath/tools/stylesheet/html/
-zip -r "spase"$group"-xsl-"$verpack".zip" xsl/"editor"$group"-"$verpack xsl/"display"$group"-"$verpack
+"$zip" -r "spase"$group"-xsl-"$verpack".zip" xsl/"editor"$group"-"$verpack xsl/"display"$group"-"$verpack
 
 # Clean-up
 rm -r -f xsl

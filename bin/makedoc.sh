@@ -8,7 +8,7 @@
 #
 
 version=${1:-2.2.1}
-dbname=${2:-spase-model}
-homepath=${3:-/c/projects/spase/webapp/website/site/ROOT}
+dbname=${2:-spase-base-model}
+homepath=${3:-/c/projects/work/spase/website/site/ROOT}
 # php makedoc.php "&version=$version" | sed '1,5d'
 php makedoc.php $version $dbname $homepath

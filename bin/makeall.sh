@@ -4,10 +4,10 @@
 # Author: Todd King
 #
 version=${1:-.}
-dbname=${2:-spase-model}
+dbname=${2:-spase-base-model}
 extend=${3:-.}
 rootelem=${4:-.}
-homepath=${5:-/c/projects/spase/webapp/website/site/ROOT}
+homepath=${5:-/c/projects/work/spase/website/site/ROOT}
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
@@ -25,7 +25,7 @@ echo "Create schema..."
 ./makexsd.sh $version $dbname $extend $rootelem $homepath
 
 base=$dbname
-if [ $base = "spase-model" ]; then
+if [ $base = "spase-base-model" ]; then
    base="spase"
 fi
 
@@ -50,7 +50,7 @@ echo "Create document..."
    # Make the registry files
    # ./makeregistry.sh $version $homepath
 
-   # Make XSL files
+# Make XSL files
 echo "Create XSL files..."
    ./makexsl.sh $version $dbname $homepath
 #fi
@@ -64,6 +64,8 @@ echo "Create parser..."
 
 # Create DOS style homepath
 dospath=`echo $homepath | sed -e 's.^/..' -e 's./.:\\\\.' -e 's./.\\\\.g'`
+
+# Instructions for further steps
 
 # Make schema documentation (using Oxygen)
 echo Run the command: makeschema.bat $base-$vername $dospath

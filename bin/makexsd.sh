@@ -4,18 +4,23 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-dbname=${2:-spase-model}
+dbname=${2:-spase-base-model}
 extend=${3:-.}
 rootelem=${4:-.}
-homepath=${5:-/c/projects/spase/webapp/website/site/ROOT}
+homepath=${5:-/c/projects/work/spase/website/site/ROOT}
 
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
-# "spase-model" becomes "spase". All others left as is
+# Change base name as needed. "spase-base-model" becomes "spase", "spase-sim-model" becomes "spase-sim". All others remain as is.
 base=$dbname
-if [ $base = "spase-model" ]; then
+if [ $base = "spase-base-model" ]; then
    base="spase"
+   dbname="spase-model"
+fi
+if [ $base = "spase-sim-model" ]; then
+   base="spase-sim"
+   dbname="spase-sim"
 fi
 
 # Make the schema

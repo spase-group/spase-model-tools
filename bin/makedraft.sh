@@ -4,16 +4,17 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-dbname=${2:-spase-model}
-homepath=${3:-/c/projects/spase/webapp/website/site/ROOT}
+dbname=${2:-spase-base-model}
+homepath=${3:-/c/projects/work/spase/website/site/ROOT}
 
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
 
-# "spase-model" becomes "". All others become suffix
+# "spase-base-model" becomes "". All others become suffix
 temp=(${dbname//-/ })
 group="-"${temp[1]}
-if [ $group = "-model" ]; then
+echo "Group: " $group
+if [ $group = "-base" ]; then
    group=""
 fi
 

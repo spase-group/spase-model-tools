@@ -4,8 +4,8 @@
 # Author: Todd King
 #
 version=${1:-2.2.1}
-dbname=${2:-spase-model}
-homepath=${3:-/c/projects/spase/webapp/root/site}
+dbname=${2:-spase-base-model}
+homepath=${3:-/c/projects/work/spase/website/site/ROOT}
 
 vername=`echo $version | sed 's/\./_/g'`
 verpack=`echo $version | sed 's/\.//g'`
