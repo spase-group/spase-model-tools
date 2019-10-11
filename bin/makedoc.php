@@ -1,4 +1,4 @@
-#!/user/bin/php
+#!/tools/php
 <?php
 // Designed for the SPASE website environment.
 // Written by: Todd King (June 2005)
@@ -224,9 +224,13 @@ function LoadFile($file, $newPage)
 	   	$tagArg = array();
 	   	array_shift($tagPart);
          foreach($tagPart as $v) {
-            if(ereg('^([^=]*)=["\']?([^"\']*)["\']?$', $v, $argPart)) {
-               $tagArg[strtolower($argPart[1])]=$argPart[2];
-            }
+			 $part = explode('=', $v, 2);
+			 if(sizeof($part) == 2) {
+                 $tagArg[strtolower($part[0])]=str_replace(array('\'', '"'), '', $part[1]);
+			}
+          // if(preg_match('^([^=]*)=["\']?([^"\']*)["\']?$', $v, $argPart)) {
+          //      $tagArg[strtolower($argPart[1])]=$argPart[2];
+          //   }
          }
 	   	
 	   	// Extract text that follows tag - if present
