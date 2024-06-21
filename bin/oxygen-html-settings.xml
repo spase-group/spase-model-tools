@@ -101,7 +101,7 @@
 					<String>en</String>
 				</field>
 				<field name="unexpandedOutputFile">
-					<String>\spase-out\index.htm</String>
+					<String>spase-out/index.htm</String>
 				</field>
 				<field name="splitMethod">
 					<Integer>3</Integer>
