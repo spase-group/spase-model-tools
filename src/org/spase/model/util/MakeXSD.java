@@ -201,6 +201,8 @@ public class MakeXSD extends Query {
 		printLine("	      xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"");
 		printLine("	      xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"");
 		printLine("	      xmlns:vc=\"http://www.w3.org/2007/XMLSchema-versioning\"");
+		printLine("	      xmlns:rights=\"http://www.spase-group.org/data/schema\"");
+		printLine("	      rights=\"Creative Commons Zero v1.0 Universal\"");
 		printLine("	      xmlns:" + mNamespace + "=\"" + mTarget + "\"");
 		printLine("	      elementFormDefault=\"qualified\"");
 		printLine("	      attributeFormDefault=\"unqualified\"");
